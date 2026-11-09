@@ -12,7 +12,7 @@ const BASE = (() => {
 })();
 const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const kb = n => n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(1) + ' KB' : (n/1048576).toFixed(1) + ' MB';
-async function api(p){ const r = await fetch(BASE + p); if(!r.ok) throw new Error(p+' → '+r.status); return r.json(); }
+async function api(p){ const r = await fetch(BASE + '/data' + p.replace(/^\/api/, '') + '.json'); if(!r.ok) throw new Error(p+' → '+r.status); return r.json(); }
 
 function md(src){
   const lines = String(src ?? '').split('\n');

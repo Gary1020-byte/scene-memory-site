@@ -1,6 +1,16 @@
-data/public.sqlite3
-data/public.sqlite3-wal
-data/public.sqlite3-shm
-public/downloads/
-.tmp-dl/
 node_modules/
+__pycache__/
+*.pyc
+
+# 私有：本機狀態
+.tmp-dl/
+*.sqlite3-shm
+*.sqlite3-wal
+
+# 建置產物
+dist/
+
+# 注意：data/public.sqlite3 與 public/downloads/ **要進版控**——
+# 公開版只有公開內容（場景功用、六層架構、導讀文章、空白骨架包），
+# 不含絕對路徑、session id、場景私有記憶全文。
+# CI 靠它們建置靜態站（GitHub runner 上沒有本機場景目錄）。

@@ -1,0 +1,60 @@
+name: Deploy site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'data/public.sqlite3'
+      - 'public/downloads/**'
+      - 'backend/build_static.py'
+      - '.github/workflows/deploy-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # 公開庫 → 純靜態 dist/
+      # 註：data/public.sqlite3 與 public/downloads/ 已 commit 進版控，
+      # 因為 GitHub runner 上沒有本機場景目錄可掃。
+      - name: Build static site
+        run: |
+          python3 backend/build_static.py --base /scene-memory-architecture
+
+      - name: Sanity check
+        run: |
+          test -f dist/index.html
+          test -f dist/data/scenes.json
+          test -d dist/downloads
+          ls dist/downloads/*.zip | wc -l
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
