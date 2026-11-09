@@ -35,7 +35,9 @@ jobs:
       # 因為 GitHub runner 上沒有本機場景目錄可掃。
       - name: Build static site
         run: |
-          python3 backend/build_static.py --base /scene-memory-architecture
+          BASE="/${GITHUB_REPOSITORY##*/}"
+          echo "base = $BASE"
+          python3 backend/build_static.py --base "$BASE"
 
       - name: Sanity check
         run: |

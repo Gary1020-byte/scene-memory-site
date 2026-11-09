@@ -1,12 +1,17 @@
 /* Gary 的場景記憶架構 · 共用前端 */
 // 站台根：從 assets 的 href 反推（相容掛在子路徑下，例如 /scene-memory-public/）
 const BASE = (() => {
+  // 1) 建置時注入（最精確）：<meta name="base-path" content="/repo">
+  const meta = document.querySelector('meta[name="base-path"]');
+  if (meta) return meta.getAttribute('content') || '';
+  // 2) 從 assets 的 href 反推
   const link = document.querySelector('link[href*="/assets/"]');
   if (link) {
     const u = new URL(link.href, location.href);
     const i = u.pathname.indexOf('/assets/');
     if (i >= 0) return u.pathname.slice(0, i);
   }
+  // 3) 從路徑反推
   let p = location.pathname; if (!p.endsWith('/')) p = p.replace(/[^/]*$/, '');
   return p.replace(/\/$/, '');
 })();
