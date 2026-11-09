@@ -1,7 +1,6 @@
-data/db.sqlite3
-data/db.sqlite3-wal
-data/db.sqlite3-shm
-data/db.json
-node_modules/
+data/public.sqlite3
+data/public.sqlite3-wal
+data/public.sqlite3-shm
 public/downloads/
 .tmp-dl/
+node_modules/

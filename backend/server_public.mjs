@@ -2,10 +2,9 @@
 /**
  * server_public.mjs —— 公開版 API + 網站
  *
- * 與內網版（server.mjs）完全分開：
- *   內網版  data/db.sqlite3     含絕對路徑、session id、私人記憶全文
- *   公開版  data/public.sqlite3 只含可公開內容
- * 公開版**不提供**任何會洩漏本機狀態的端點。
+ * 這是**唯一**的後端。它只讀 data/public.sqlite3，
+ * 那個庫裡沒有絕對路徑、沒有 session id、沒有場景私有記憶全文。
+ * 任何會洩漏本機狀態的端點都不存在——不是靠隱藏，是沒有。
  */
 import http from 'node:http'
 import fs from 'node:fs'
