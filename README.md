@@ -102,6 +102,26 @@ const DB = await (await fetch('http://127.0.0.1:8787/api/legacy.json')).json();
 
 > 保留 `scan_scenes.py` → `build_map.py` 作為**離線快照**用途（例如寄給別人看、或做單檔分發）；日常改成打 API。
 
+## Tailscale 掛載（已啟用）
+
+```
+https://garyaioserver.tail257fa5.ts.net/scene-memory/
+```
+
+- 只在 **tailnet 內**可達（`tailscale serve`，不是 `funnel` ⇒ 不會暴露到公網）
+- 走 **HTTPS**，憑證由 Tailscale 自動簽發
+- 只綁 `127.0.0.1:8787`，不開新的對外 port；對外流量全部由 tailscaled 代理
+
+```bash
+tailscale serve --bg --set-path=/scene-memory http://127.0.0.1:8787
+tailscale serve status          # 看掛載
+```
+
+其他裝置（laptop-cneu6ssj / oppo-find-x9）連同一 tailnet 就能直接開那個網址。
+
+> 前端的 API base 會從 `location.pathname` 推導，所以掛在子路徑下不用改任何設定。
+> 如果將來要掛到別的路徑，改 `--set-path` 即可，前端自動跟上。
+
 ## 服務化（已啟用）
 
 ```ini

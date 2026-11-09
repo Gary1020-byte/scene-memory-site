@@ -130,7 +130,13 @@ table.t th{background:var(--black);color:var(--offwhite);font-weight:800}
 <div id="status"></div>
 
 <script>
-const API = '';
+// 基礎路徑：支援掛在子路徑下（例：https://host/scene-memory/）
+const BASE = (() => {
+  let p = location.pathname;
+  if (!p.endsWith('/')) p = p.replace(/[^/]*$/, '');
+  return p.replace(/\/$/, '');
+})();
+const API = BASE;
 const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const kb = n => n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(1) + ' KB' : (n/1048576).toFixed(1) + ' MB';
 
