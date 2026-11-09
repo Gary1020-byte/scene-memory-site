@@ -1,0 +1,198 @@
+/* ============================================================
+   Aurora — shared component layer
+   Theme-agnostic. Reads --c-* and --mat-* from vars-light / vars-dark.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  font-weight: var(--weight-body);
+  line-height: 1.6;
+  color: var(--c-text);
+  background: var(--c-bg);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- typography roles ---------- */
+h1, h2, .display {
+  font-family: var(--font-display);
+  color: var(--c-heading);
+  letter-spacing: var(--tracking-display);
+  line-height: 1.2;
+}
+h1, .display { font-size: var(--text-h1); font-weight: var(--weight-display); }
+h2            { font-size: var(--text-h2); font-weight: var(--weight-display); }
+h3            { font-size: var(--text-h3); font-weight: var(--weight-heading); }
+h4            { font-size: var(--text-h4); font-weight: var(--weight-heading); }
+
+.label {
+  font-size: var(--text-micro);      /* 12px */
+  font-weight: var(--weight-label);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+}
+
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+a { color: var(--c-accent-text); text-underline-offset: 3px; }
+
+/* ---------- material: theme-agnostic ---------- */
+.glass {
+  position: relative;
+  background: var(--mat-bg);
+  -webkit-backdrop-filter: blur(var(--mat-blur)) saturate(var(--mat-sat));
+          backdrop-filter: blur(var(--mat-blur)) saturate(var(--mat-sat));
+  border: 1px solid var(--mat-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--mat-highlight), var(--mat-rim), var(--mat-shadow);
+}
+
+.card { padding: var(--space-lg); }
+.card-hover { transition: transform var(--duration-normal) var(--ease-out-expo),
+                           box-shadow var(--duration-normal) var(--ease-out-expo); }
+.card-hover:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+
+/* ---------- atmosphere orbs ---------- */
+/* Per-card atmosphere. A page-level .orbs cannot be tuned per component: CSS
+   custom properties inherit DOWN the tree, so an override on a card only
+   reaches that card's descendants — never a sibling orb outside it. Wrapping
+   the orbs inside the card puts them BEHIND the glass, so backdrop-filter
+   refracts the glow instead of the glass merely tinting over it. */
+.mat { position: relative; isolation: isolate; }
+
+.card-atmos {
+  position: absolute; inset: -12% -8%; z-index: -1; overflow: hidden;
+  border-radius: calc(var(--radius-lg) + 8px); pointer-events: none;
+}
+.card-atmos .orb { position: absolute; border-radius: 50%; }
+.card-atmos .orb-gold {
+  width: 88%; height: 88%; top: -22%; left: -12%;
+  background: radial-gradient(circle, rgba(222,193,107,var(--orb-gold-opacity)) 0%, transparent 68%);
+  filter: blur(var(--orb-blur)); }
+.card-atmos .orb-mauve {
+  width: 76%; height: 76%; bottom: -26%; right: -14%;
+  background: radial-gradient(circle, rgba(134,107,108,var(--orb-mauve-opacity)) 0%, transparent 68%);
+  filter: blur(var(--orb-blur)); }
+.card-atmos .orb-purple {
+  width: 62%; height: 62%; top: 34%; left: 42%;
+  background: radial-gradient(circle, rgba(50,40,63,var(--orb-purple-opacity)) 0%, transparent 70%);
+  filter: blur(var(--orb-blur)); }
+
+.orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.orb {
+  position: absolute; border-radius: 50%;
+  filter: blur(var(--orb-blur));
+  will-change: transform;
+}
+.orb-gold   { background: radial-gradient(circle, rgba(222,193,107,var(--orb-gold-opacity))   0%, transparent 70%); }
+.orb-mauve  { background: radial-gradient(circle, rgba(134,107,108,var(--orb-mauve-opacity))  0%, transparent 70%); }
+.orb-purple { background: radial-gradient(circle, rgba(50,40,63,var(--orb-purple-opacity))    0%, transparent 70%); }
+.orb-a { width: 44vw; height: 44vw; top: -12vw; left: -8vw;  animation: drift-a 28s var(--ease-out-expo) infinite; }
+.orb-b { width: 34vw; height: 34vw; bottom: -10vw; right: -6vw; animation: drift-b 34s var(--ease-out-expo) infinite; }
+.orb-c { width: 26vw; height: 26vw; top: 45%; left: 58%;     animation: drift-c 40s var(--ease-out-expo) infinite; }
+
+@keyframes drift-a { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(3vw,-2vw) scale(1.06)} }
+@keyframes drift-b { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-2.5vw,2vw) scale(.95)} }
+@keyframes drift-c { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(1.5vw,2.5vw) scale(1.04)} }
+
+@media (prefers-reduced-motion: reduce) {
+  .orb { animation: none; }
+  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-body); font-weight: var(--weight-heading);
+  padding: 10px var(--space-lg);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--duration-fast),
+              color var(--duration-fast),
+              border-color var(--duration-fast),
+              transform var(--duration-fast) var(--ease-spring);
+}
+.btn:active { transform: scale(.98); }
+
+.btn-primary { background: var(--c-accent); color: var(--c-on-accent); box-shadow: var(--shadow-accent); }
+.btn-primary:hover { background: var(--c-accent-strong); }
+
+.btn-secondary { background: transparent; color: var(--c-heading); border-color: var(--c-border-strong); }
+.btn-secondary:hover { background: var(--c-surface-2); }
+
+.btn-ghost { background: transparent; color: var(--c-accent-text); padding: 10px var(--space-sm); }
+.btn-ghost:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- badges / chips ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--text-small); font-weight: var(--weight-label);
+  padding: 4px 10px; border-radius: var(--radius-pill);
+}
+.chip-accent  { background: var(--c-accent); color: var(--c-on-accent); }
+.chip-outline { background: transparent; color: var(--c-heading); border: 1px solid var(--c-border-strong); }
+/* outline chip sits on a surface, not on glass — text-muted fails on some of them */
+
+/* ---------- forms ---------- */
+.field {
+  width: 100%;
+  font-family: var(--font-body); font-size: var(--text-body);
+  color: var(--c-heading);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px var(--space-md);
+  outline: none;
+  transition: border-color var(--duration-fast);
+}
+.field::placeholder { color: var(--c-text-muted); }
+.field:focus { border-color: var(--c-focus-ring); }
+
+:focus-visible {
+  outline: 2px solid var(--c-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+/* on accent fills the ring must be the dark ink — gold-on-gold can never reach 3:1 */
+.btn-primary:focus-visible { outline-color: var(--c-focus-ring-on-accent); }
+
+/* ---------- table ---------- */
+table { width: 100%; border-collapse: collapse; font-size: var(--text-small); }
+th {
+  text-align: left; padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-micro); font-weight: var(--weight-label);
+  letter-spacing: var(--tracking-micro); text-transform: uppercase;
+  color: var(--c-text-muted);
+  border-bottom: 1px solid var(--c-border-strong);
+}
+td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--c-border); color: var(--c-text); }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- layout ---------- */
+.shell { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; padding: var(--space-3xl) var(--space-lg); }
+.stack   { display: flex; flex-direction: column; }
+.grid-2  { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-lg); }
+.grid-3  { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-lg); }
+.row     { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+.between { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; }
+.muted   { color: var(--c-text-muted); }
+/* text-secondary is DECORATIVE-ONLY: #AE9899 is 2.58:1 on light bg (fails AA for body),
+   7.68:1 on dark. Safe for large text or non-essential metadata. Never for body copy. */
+.secondary-text { color: var(--c-text-secondary); }
+.mt-sm { margin-top: var(--space-sm); }
+.mt-md { margin-top: var(--space-md); }
+.mt-lg { margin-top: var(--space-lg); }
+
+@media (max-width: 860px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .shell { padding: var(--space-xl) var(--space-md); }
+}

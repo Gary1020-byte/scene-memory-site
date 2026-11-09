@@ -1,5 +1,40 @@
 # scene-memory-backend —— 場景記憶架構的專門資料庫（網頁後端）
 
+## ⚠️ 兩套後端，分開的
+
+| | 內網版 | **公開版**（要發布到網路上的） |
+|---|---|---|
+| 服務 | `backend/server.mjs` :8787 | `backend/server_public.mjs` :8788 |
+| 資料庫 | `data/db.sqlite3` | `data/public.sqlite3` |
+| 網址 | `/scene-memory/` | `/scene-memory-public/` |
+| 內容 | 絕對路徑、session id、**場景私有記憶全文**、共享層全文 | **只有可公開內容**：場景功用、技能名、六層架構、導讀文章 |
+| 用途 | 你的工作台觀測站 | 給外面的人看、給人下載骨架 |
+
+**公開版不提供任何會洩漏本機狀態的端點。** 下載包也已掃過：不含 `.git/`、不含本機路徑、不含 session id。
+
+### 公開版怎麼更新
+
+```bash
+bash scripts/refresh_public.sh
+```
+
+重建公開庫 → 重啟服務 → 印筆數。
+
+### 導讀文章怎麼發布
+
+寫在 `content/reading/<slug>.md`，然後跑上面的 refresh。
+**有內容＝已發布；空白＝「待撰寫」**（網站顯示佔位）。
+
+檔名對應表見 `content/reading/README.md`。
+
+## 下載包
+
+`public/downloads/<scene-id>.zip` — 每個場景一份骨架（8 個檔案）：
+定位卡 / AGENTS.md 憲法 / 場景私有記憶.md / 身份卡.md / 場景畫像.md /
+_檔案索引.md / .dsh/skills/<id>/SKILL.md / README.md（怎麼用）。
+
+由 `backend/build_public.py` 產生，**每次重建都重新生成**。
+
 > 這是**獨立的後端**：把「機器現況」與「架構知識」灌進同一個 SQLite，
 > 用 REST API 出給前端。原始的互動設計圖把整包 JSON 內嵌進 HTML（616 KB 單檔），
 > 資料一更新就要重跑 build；改成後端之後，前端只 fetch，資料更新只重跑建庫。

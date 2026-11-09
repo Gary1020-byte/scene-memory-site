@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gary 的場景記憶架構</title>
+<meta name="description" content="記憶在檔案裡，不在會話裡。一个場景就是一個 AI agent：共用一套規矩與台帳，各自有獨立記憶；活按項目派給 owner，干完必須留證據和回執。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/vars-light.css">
+<link rel="stylesheet" href="assets/vars-dark.css">
+<link rel="stylesheet" href="assets/aurora-components.css">
+<style>
+html[data-theme="light"] { color-scheme: light; }
+html[data-theme="dark"]  { color-scheme: dark; }
+body { background: var(--c-bg); }
+.orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.orb { position: absolute; border-radius: 50%; filter: blur(var(--orb-blur)); }
+.orb-gold   { background: radial-gradient(circle, rgba(222,193,107,var(--orb-gold-opacity))   0%, transparent 70%); }
+.orb-mauve  { background: radial-gradient(circle, rgba(134,107,108,var(--orb-mauve-opacity))  0%, transparent 70%); }
+.orb-purple { background: radial-gradient(circle, rgba(50,40,63,var(--orb-purple-opacity))    0%, transparent 70%); }
+.orb-a { width: 44vw; height: 44vw; top: -12vw; left: -8vw;  animation: drift-a 28s var(--ease-out-expo) infinite; }
+.orb-b { width: 34vw; height: 34vw; bottom: -10vw; right: -6vw; animation: drift-b 34s var(--ease-out-expo) infinite; }
+.orb-c { width: 26vw; height: 26vw; top: 45%; left: 58%;     animation: drift-c 40s var(--ease-out-expo) infinite; }
+@keyframes drift-a { 0%,100%{transform:translate(0,0)} 50%{transform:translate(4vw,3vw)} }
+@keyframes drift-b { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-3vw,-4vw)} }
+@keyframes drift-c { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-5vw,2vw)} }
+
+.app { position: relative; z-index: 1; display: grid; grid-template-columns: 252px 1fr; min-height: 100vh; }
+.sidebar {
+  position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+  border-right: 1px solid var(--c-border); background: var(--c-surface);
+  padding: var(--space-xl) var(--space-lg); display: flex; flex-direction: column; gap: var(--space-lg);
+  scrollbar-width: thin;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 26px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 26px), transparent 100%);
+}
+.sidebar::-webkit-scrollbar { width: 8px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--c-border-strong); border-radius: var(--radius-pill); }
+.brand { display: flex; flex-direction: column; gap: var(--space-xs); }
+.brand .mark { font-family: var(--font-display); font-size: var(--text-h4); font-weight: var(--weight-display);
+  color: var(--c-heading); letter-spacing: var(--tracking-display); line-height: 1.25; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav-item { display: flex; align-items: baseline; gap: var(--space-sm); width: 100%; background: transparent;
+  border: 0; border-left: 2px solid transparent; padding: var(--space-sm); cursor: pointer; text-align: left;
+  font-family: var(--font-body); font-size: var(--text-caption); color: var(--c-text);
+  transition: background var(--duration-fast) var(--ease-out-expo); }
+.nav-item:hover { background: var(--c-surface-2); }
+.nav-item.on { background: var(--c-surface-2); border-left-color: var(--c-accent); color: var(--c-heading); font-weight: var(--weight-label); }
+.nav-item .n { font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-text-secondary); min-width: 20px; }
+.nav-item .c { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-text-secondary); }
+.reading { display: flex; flex-direction: column; gap: var(--space-xs); }
+.reading-item { display: grid; grid-template-columns: 22px 1fr; gap: var(--space-sm); align-items: start;
+  background: transparent; border: 0; padding: var(--space-sm); cursor: pointer; text-align: left;
+  font-family: var(--font-body); border-left: 2px solid transparent;
+  transition: background var(--duration-fast) var(--ease-out-expo); }
+.reading-item:hover { background: var(--c-surface-2); }
+.reading-item.on { background: var(--c-surface-2); border-left-color: var(--c-accent); }
+.reading-item .idx { font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-text-secondary); padding-top: 2px; }
+.reading-item .t { font-size: var(--text-caption); color: var(--c-text); line-height: 1.45; }
+.reading-item.on .t { color: var(--c-heading); font-weight: var(--weight-label); }
+.reading-item .st { font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-text-secondary); }
+
+.main { padding: var(--space-2xl) var(--space-2xl) var(--space-3xl); max-width: 1100px; }
+.top { display: flex; align-items: flex-start; gap: var(--space-lg); flex-wrap: wrap; margin-bottom: var(--space-xl); }
+.top .title { flex: 1; min-width: 260px; }
+.top h1 { font-size: var(--text-h2); margin-bottom: var(--space-xs); }
+.top .desc { font-size: var(--text-caption); color: var(--c-text-secondary); }
+.section-head { display: flex; align-items: baseline; gap: var(--space-md); margin: var(--space-xl) 0 var(--space-lg); }
+.section-head h2 { font-size: var(--text-h3); }
+.section-head .rule { flex: 1; height: 1px; background: var(--c-border); }
+.section-head .cnt { font-family: var(--font-mono); font-size: var(--text-caption); color: var(--c-accent-text); }
+.label { color: var(--c-text-muted); }
+.field::placeholder { color: var(--c-text-secondary); opacity: .85; }
+
+/* ───────── L0–L5 架構圖 ───────── */
+/* ── 六層總覽圖（首屏可見全貌） ── */
+/* ── 六層架構圖（SVG） ── */
+.archmap { margin-bottom: var(--space-lg); }
+.archmap svg { width: 100%; height: auto; display: block; }
+.am-bar { fill: var(--c-surface); stroke: var(--c-border-strong); stroke-width: 1; }
+.am-bar.g { fill: var(--c-accent); fill-opacity: .16; stroke: var(--c-accent); }
+.am-code { font-family: var(--font-display); font-size: 15px; font-weight: 700; fill: var(--c-accent); }
+.am-title { font-family: var(--font-display); font-size: 13px; font-weight: 600; fill: var(--c-heading); }
+.am-sub { font-family: var(--font-mono); font-size: 10px; fill: var(--c-text-secondary); }
+.am-who { font-family: var(--font-mono); font-size: 10px; fill: var(--c-text-secondary); }
+.am-line { stroke: var(--c-border-strong); stroke-width: 1; }
+.ac-line { stroke: var(--c-accent); stroke-width: 1.5; }
+.ac-line.dash { stroke-dasharray: 4 3; }
+.am-arrow { fill: var(--c-accent); }
+.am-lbl { font-family: var(--font-mono); font-size: 10px; fill: var(--c-text-secondary); }
+.am-lbl.acc { fill: var(--c-accent-text); }
+.am-scene { fill: var(--c-surface-2); stroke: var(--c-border); stroke-width: 1; }
+.am-scene-t { font-family: var(--font-mono); font-size: 9.5px; fill: var(--c-text-secondary); }
+.am-note { font-size: var(--text-micro); color: var(--c-text-secondary); margin-top: var(--space-sm); line-height: 1.6; }
+
+/* ── 詳細層卡 ── */
+.arch { display: flex; flex-direction: column; }
+.layer { display: grid; grid-template-columns: 132px 1fr; gap: var(--space-lg);
+  border: 1px solid var(--c-border); padding: var(--space-md) var(--space-lg);
+  background: var(--mat-bg); align-items: start; }
+.layer:first-child { border-top-left-radius: var(--radius-lg); border-top-right-radius: var(--radius-lg); }
+.layer:last-child { border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); }
+.layer .code { font-family: var(--font-display); font-size: var(--text-h3); font-weight: var(--weight-display);
+  color: var(--c-accent-text); line-height: 1; }
+.layer .lrole { font-size: var(--text-micro); color: var(--c-text-secondary); margin-top: 8px; line-height: 1.5; }
+.layer .lrole .cap { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--c-text-muted); margin-bottom: 2px; }
+.layer .lname { font-family: var(--font-display); font-size: var(--text-h4); font-weight: var(--weight-heading);
+  color: var(--c-heading); margin-bottom: 2px; }
+.layer .holds { font-size: var(--text-caption); color: var(--c-text); line-height: 1.65; max-width: 62ch; }
+.layer .writer { font-size: var(--text-micro); color: var(--c-text-secondary); margin-top: 4px; font-family: var(--font-mono); }
+.layer .note { font-size: var(--text-micro); color: var(--c-text-muted); margin-top: 2px; line-height: 1.55; }
+.layer .lhead { display: flex; flex-direction: column; align-items: flex-start; }
+/* 層間關係：明確的 Lx → Ly ｜ 說明 */
+.rel { position: relative; padding: 2px var(--space-lg) 2px 66px; display: flex; align-items: center; gap: var(--space-sm); }
+.rel .bar { width: 2px; height: 18px; background: var(--c-accent); opacity: .8; flex: none; }
+.rel .reltext { font-size: var(--text-micro); color: var(--c-text-secondary); line-height: 1.5; }
+.rel .reltext b { color: var(--c-accent-text); font-family: var(--font-mono); font-weight: var(--weight-label); }
+.rel .reltext i { font-style: normal; color: var(--c-text-muted); margin: 0 6px; }
+.arch-rule { font-size: var(--text-caption); color: var(--c-text-secondary); margin: var(--space-md) 0 var(--space-lg);
+  padding-left: var(--space-md); border-left: 2px solid var(--c-accent); line-height: 1.7; }
+.arch-rule strong { color: var(--c-heading); }
+
+/* ───────── 場景卡 ───────── */
+.scene-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: var(--space-lg); }
+.scene-card { display: flex; flex-direction: column; gap: var(--space-sm); }
+.scene-card .sc-top { display: flex; align-items: baseline; gap: var(--space-sm); }
+.scene-card h3 { font-size: var(--text-h4); }
+.scene-card .sid { font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-text-secondary); }
+.scene-card .purpose { font-size: var(--text-caption); color: var(--c-text); line-height: 1.65; flex: 1; }
+.scene-card .sc-meta { display: flex; flex-wrap: wrap; gap: var(--space-xs); font-family: var(--font-mono);
+  font-size: var(--text-micro); color: var(--c-text-secondary); }
+.scene-card .sc-actions { display: flex; gap: var(--space-sm); align-items: center; margin-top: var(--space-xs);
+  padding-top: var(--space-sm); border-top: 1px solid var(--c-border); }
+.dl { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-micro); font-family: var(--font-mono);
+  text-decoration: none; }
+
+/* ───────── 導讀文章 ───────── */
+.article { max-width: 760px; }
+.article h2 { font-size: var(--text-h3); margin: var(--space-2xl) 0 var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--c-border); }
+.article h3 { font-size: var(--text-h4); margin: var(--space-xl) 0 var(--space-sm); color: var(--c-heading); }
+.article p { margin: var(--space-sm) 0; line-height: 1.75; font-size: var(--text-caption); }
+.article ul, .article ol { margin: var(--space-sm) 0 var(--space-sm) var(--space-lg); line-height: 1.75; font-size: var(--text-caption); }
+.article strong { color: var(--c-heading); font-weight: var(--weight-label); }
+.article code { font-family: var(--font-mono); font-size: .86em; background: var(--c-surface-2);
+  border: 1px solid var(--c-border); padding: 1px 5px; color: var(--c-accent-text); }
+.article pre { background: var(--c-surface-2); border: 1px solid var(--c-border); padding: var(--space-md);
+  overflow-x: auto; margin: var(--space-md) 0; }
+.article pre code { background: none; border: 0; padding: 0; color: var(--c-text); font-size: var(--text-micro); line-height: 1.6; }
+.article blockquote { margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md);
+  border-left: 2px solid var(--c-accent); color: var(--c-text-secondary); }
+.article blockquote p { margin: 0; }
+.article table { width: 100%; border-collapse: collapse; margin: var(--space-md) 0; font-size: var(--text-micro); }
+.article th, .article td { border: 1px solid var(--c-border); padding: 6px 10px; text-align: left; vertical-align: top; line-height: 1.6; }
+.article th { background: var(--c-surface-2); color: var(--c-heading); }
+.empty { padding: var(--space-2xl); text-align: center; color: var(--c-text-secondary); font-size: var(--text-caption);
+  border: 1px dashed var(--c-border-strong); border-radius: var(--radius-md); }
+.empty .big { font-family: var(--font-display); font-size: var(--text-h4); color: var(--c-heading); margin-bottom: var(--space-sm); }
+@media (max-width: 900px) { .app { grid-template-columns: 1fr; } .sidebar { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--c-border); } }
+</style>
+</head>
+<body>
+<div class="orbs">
+  <div class="orb orb-gold orb-a"></div>
+  <div class="orb orb-mauve orb-b"></div>
+  <div class="orb orb-purple orb-c"></div>
+</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">Gary 的場景記憶架構</div>
+    </div>
+
+    <nav class="nav" id="nav"></nav>
+
+    <div>
+      <div class="label" style="margin-bottom:var(--space-sm)">導讀</div>
+      <div class="reading" id="reading"></div>
+    </div>
+
+    <div style="margin-top:auto" class="row">
+      <button class="btn btn-secondary" id="theme">切換亮／暗</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <div class="title">
+        <h1 id="page-title">架構</h1>
+        <div class="desc" id="page-desc"></div>
+      </div>
+      <div class="tools"><input class="field" id="q" placeholder="搜場景" style="width:200px"></div>
+    </div>
+    <div id="view"></div>
+  </main>
+</div>
+
+<script>
+const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function md(src){
+  const lines = String(src ?? '').split('\n');
+  let out = '', i = 0, inCode = false, codeBuf = [];
+  const inline = t => esc(t)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+  while (i < lines.length){
+    const L = lines[i];
+    if (/^```/.test(L)){
+      if (!inCode){ inCode = true; codeBuf = []; } else { out += '<pre><code>' + esc(codeBuf.join('\n')) + '</code></pre>'; inCode = false; }
+      i++; continue;
+    }
+    if (inCode){ codeBuf.push(L); i++; continue; }
+    if (/^\s*\|/.test(L) && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i+1]||'')){
+      const cells = r => r.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+      const head = cells(L); i += 2; const rows = [];
+      while (i < lines.length && /^\s*\|/.test(lines[i])) { rows.push(cells(lines[i])); i++; }
+      out += '<table><thead><tr>' + head.map(h=>'<th>'+inline(h)+'</th>').join('') + '</tr></thead><tbody>'
+           + rows.map(r=>'<tr>'+r.map(c=>'<td>'+inline(c)+'</td>').join('')+'</tr>').join('') + '</tbody></table>';
+      continue;
+    }
+    let m;
+    if ((m = L.match(/^(#{1,6})\s+(.*)$/))){ const lv = Math.min(Math.max(m[1].length,2),4);
+      out += `<h${lv}>${inline(m[2])}</h${lv}>`; i++; continue; }
+    if (/^#+\s*$/.test(L)){ i++; continue; }
+    if (/^\s*(-{3,}|\*{3,})\s*$/.test(L)){ out += '<hr>'; i++; continue; }
+    if ((m = L.match(/^\s*>\s?(.*)$/))){
+      const buf = []; let g=0;
+      while (i < lines.length && /^\s*>\s?/.test(lines[i]) && g++ < 500) { buf.push(lines[i].replace(/^\s*>\s?/,'')); i++; }
+      out += '<blockquote>' + md(buf.join('\n')) + '</blockquote>'; continue;
+    }
+    if ((m = L.match(/^\s*[-*]\s+(.*)$/))){
+      const items = []; let g=0;
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i]) && g++ < 500) { items.push(lines[i].replace(/^\s*[-*]\s+/,'')); i++; }
+      out += '<ul>' + items.map(x=>'<li>'+inline(x)+'</li>').join('') + '</ul>'; continue;
+    }
+    if ((m = L.match(/^\s*\d+\.\s+(.*)$/))){
+      const items = []; let g=0;
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i]) && g++ < 500) { items.push(lines[i].replace(/^\s*\d+\.\s+/,'')); i++; }
+      out += '<ol>' + items.map(x=>'<li>'+inline(x)+'</li>').join('') + '</ol>'; continue;
+    }
+    if (!L.trim()){ i++; continue; }
+    const buf = []; let guard=0;
+    while (i < lines.length && lines[i].trim() && !/^\s*([-*]\s|\d+\.\s|>|#)/.test(lines[i])
+           && !/^\s*\|/.test(lines[i]) && !/^\s*```/.test(lines[i]) && guard++ < 500) { buf.push(lines[i]); i++; }
+    if (!buf.length){ i++; continue; }
+    out += '<p>' + inline(buf.join(' ')) + '</p>';
+  }
+  if (inCode && codeBuf.length) out += '<pre><code>' + esc(codeBuf.join('\n')) + '</code></pre>';
+  return out;
+}
+
+const S = { scenes: [], layers: [], reading: [], mode: 'arch', q: '', article: null };
+// 基礎路徑：支援掛在子路徑下（例：https://host/scene-memory-public/）
+const BASE = (() => { let p = location.pathname; if (!p.endsWith('/')) p = p.replace(/[^/]*$/, ''); return p.replace(/\/$/, ''); })();
+async function api(p){ const r = await fetch(BASE + p); if(!r.ok) throw new Error(p+' → '+r.status); return r.json(); }
+
+function renderNav(){
+  const navs = [
+    ['arch',   '架構 L0–L5', S.layers.length],
+    ['scenes', '場景',       S.scenes.length],
+    ['reading','導讀',       S.reading.length],
+  ];
+  document.getElementById('nav').innerHTML = navs.map(([k,t,c],i) =>
+    `<button class="nav-item ${S.mode===k?'on':''}" data-mode="${k}"><span class="n">${i+1}</span><span>${t}</span><span class="c">${c}</span></button>`).join('');
+  document.getElementById('reading').innerHTML = S.reading.map(r =>
+    `<button class="reading-item ${S.article===r.slug?'on':''}" data-article="${esc(r.slug)}">
+      <span class="idx">${String(r.seq).padStart(2,'0')}</span>
+      <span><span class="t">${esc(r.title)}</span><br><span class="st">${r.status==='published'?'已發布':'待撰寫'}</span></span></button>`).join('');
+}
+
+function overviewBlock(){
+  const L = S.layers;
+  const W = 900, PADL = 96, BARH = 42, GAP = 40;
+  const n = L.length;
+  const H = 60 + n * (BARH + GAP) + 40;
+
+  const y = i => 46 + i * (BARH + GAP);
+  const barX = PADL, barW = W - barX - 16;
+  const bottom = y(n - 1) + BARH;
+
+  let g = '';
+  // ── L0 約束所有層：左側完整框線（不是只有一條線） ──
+  const bx0 = PADL - 34, bx1 = PADL - 18;
+  g += `<path class="ac-line dash" d="M ${bx1} ${y(0)-6} L ${bx0} ${y(0)-6} L ${bx0} ${bottom+10} L ${bx1} ${bottom+10}" fill="none"/>`;
+  g += `<text class="am-lbl acc" x="${bx0-6}" y="${(y(0)+bottom)/2}" text-anchor="middle" transform="rotate(-90 ${bx0-6} ${(y(0)+bottom)/2})">L0 約束所有層</text>`;
+
+  L.forEach((l, i) => {
+    const yy = y(i), isL0 = i === 0;
+    g += `<rect class="am-bar${isL0?' g':''}" x="${barX}" y="${yy}" width="${barW}" height="${BARH}" rx="4"/>`;
+    g += `<text class="am-code" x="${barX-52}" y="${yy+BARH/2+5}" text-anchor="middle">${esc(l.code)}</text>`;
+    g += `<text class="am-title" x="${barX+14}" y="${yy+18}">${esc(l.title)}</text>`;
+    g += `<text class="am-sub" x="${barX+14}" y="${yy+33}">${esc((l.role||'').slice(0,32))}</text>`;
+    g += `<text class="am-who" x="${barX+barW-12}" y="${yy+BARH/2+4}" text-anchor="end">${esc(l.writer)}</text>`;
+
+    if (i < n - 1) {
+      const nx = barX + 150;
+      const y1 = yy + BARH, y2 = y(i+1);
+      g += `<line class="ac-line" x1="${nx}" y1="${y1}" x2="${nx}" y2="${y2-8}"/>`;
+      g += `<path class="am-arrow" d="M ${nx-4} ${y2-12} L ${nx+4} ${y2-12} L ${nx} ${y2-2} Z"/>`;
+      g += `<text class="am-lbl" x="${nx+14}" y="${(y1+y2)/2+4}">${esc(l.rel||'')}</text>`;
+    }
+  });
+
+  // ── L2 的並行分支：多個場景（獨立節點 + 間隔） ──
+  const i2 = 2;
+  if (L[i2]) {
+    const yy = y(i2);
+    const names = S.scenes.slice(0, 4).map(s => s.name);
+    const bw = 104, bh = 24, gap = 18;
+    const bx = barX + 70;
+    const railY = yy + BARH + 22;
+    const total = names.length * bw + (names.length - 1) * gap;
+    g += `<line class="am-line" x1="${bx}" y1="${yy+BARH}" x2="${bx}" y2="${railY}"/>`;
+    g += `<line class="am-line" x1="${bx}" y1="${railY}" x2="${bx+total-bw/2}" y2="${railY}"/>`;
+    names.forEach((nm, k) => {
+      const x = bx + k * (bw + gap);
+      const cx = x + bw/2;
+      g += `<line class="am-line" x1="${cx}" y1="${railY}" x2="${cx}" y2="${railY+12}"/>`;
+      g += `<rect class="am-scene" x="${x}" y="${railY+12}" width="${bw}" height="${bh}" rx="3"/>`;
+      g += `<text class="am-scene-t" x="${cx}" y="${railY+27}" text-anchor="middle">${esc(nm)}</text>`;
+    });
+    const noteX = bx + total + 22;
+    g += `<text class="am-lbl" x="${noteX}" y="${railY+28}">…共 ${S.scenes.length} 個場景</text>`;
+    g += `<text class="am-scene-t" x="${noteX}" y="${railY+42}">每個場景一份自己的記憶與技能</text>`;
+  }
+
+  return `<div class="glass card">
+    <div class="label" style="margin-bottom:var(--space-md)">全貌 · L0 到 L5</div>
+    <div class="archmap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="場景記憶架構六層圖">
+      ${g}
+    </svg></div>
+    <div class="am-note">實線＝主要流程與約束流向；虛線框＝L0 全域憲法對所有層的約束。L2 下方是平行的分支：每個場景各有自己的記憶與技能。</div>
+  </div>`;
+}
+
+function layerBlock(){
+  const body = S.layers.map((l, i) => {
+    const next = S.layers[i+1];
+    const rel = next ? `<div class="rel"><div class="bar"></div>
+        <div class="reltext"><b>${esc(l.code)} → ${esc(next.code)}</b><i>｜</i>${esc(l.rel || '')}</div></div>` : '';
+    return rel + `<div class="layer">
+      <div class="lhead"><span class="code">${esc(l.code)}</span>
+        ${l.role?`<span class="lrole"><span class="cap">定位</span>${esc(l.role)}</span>`:''}</div>
+      <div>
+        <div class="lname">${esc(l.title)}</div>
+        <div class="holds">${esc(l.holds)}</div>
+        <div class="writer">誰能寫：${esc(l.writer)}</div>
+        ${l.note ? `<div class="note">${esc(l.note)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  return overviewBlock() +
+    `<div class="section-head" style="margin-top:var(--space-xl)"><h2>每層細節</h2><div class="rule"></div></div>
+    <div class="glass card" style="padding:var(--space-md) 0">${body}</div>
+    <div class="arch-rule">每個東西只屬於一層，只在一個地方是「真源」；其他地方只放指針。<br>
+      <strong>這條判準會不斷出現</strong>——它同時解釋了「看板為什麼會分裂」「為什麼不能有兩個 §〇」「為什麼可累積物不能雙寫」。</div>`;
+}
+
+function sceneCard(s){
+  return `<div class="scene-card glass card">
+    <div class="sc-top"><h3>${esc(s.name)}</h3><span class="sid">${esc(s.id)}</span></div>
+    <div class="purpose">${esc(s.purpose)}</div>
+    <div class="sc-meta"><span>${s.skill_count} 專屬技能</span><span>·</span><span>${s.panel_count} 面板</span><span>·</span><span>${s.file_count} 記憶檔</span></div>
+    <div class="sc-actions">
+      <a class="btn btn-primary dl" href="${esc(BASE + s.download_url)}" download>↓ 下載骨架</a>
+      <span class="label">${esc(s.download || '')}</span>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const view = document.getElementById('view');
+  const title = document.getElementById('page-title'), desc = document.getElementById('page-desc');
+  renderNav();
+  if (S.mode === 'article'){
+    const r = S.reading.find(x => x.slug === S.article);
+    title.textContent = r ? r.title : '導讀';
+    desc.textContent = '';
+    view.innerHTML = r && r.body
+      ? `<div class="article glass card">${md(r.body)}</div>`
+      : `<div class="empty"><div class="big">${esc(r ? r.title : '')}</div>這一篇還沒寫。內容會由作者補上。</div>`;
+    return;
+  }
+  if (S.mode === 'arch'){
+    title.textContent = '六層架構';
+    desc.textContent = '東西歸誰、誰能寫。同一台機器上的多個 AI 場景，共用一套規矩與台帳，各自有獨立記憶。';
+    view.innerHTML = layerBlock();
+  } else if (S.mode === 'scenes'){
+    title.textContent = '場景';
+    desc.textContent = '每個場景是一類會反覆回來的活。下載骨架，自己開一個。';
+    const q = S.q.toLowerCase();
+    const list = S.scenes.filter(s => !q || s.name.toLowerCase().includes(q) || s.purpose.toLowerCase().includes(q) || s.id.includes(q));
+    view.innerHTML = `<div class="scene-grid">${list.map(sceneCard).join('')}</div>`;
+  } else {
+    title.textContent = '導讀';
+    desc.textContent = '從這裡讀進整套架構。';
+    view.innerHTML = `<div class="scene-grid">${S.reading.map(r => `
+      <div class="scene-card glass card" data-article="${esc(r.slug)}" style="cursor:pointer">
+        <div class="sc-top"><h3>${esc(r.title)}</h3><span class="sid">${String(r.seq).padStart(2,'0')}</span></div>
+        <div class="purpose">${r.status==='published' ? '已發布' : '待撰寫'}</div>
+      </div>`).join('')}</div>`;
+  }
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-mode],[data-article]');
+  if (!t) return;
+  if (t.dataset.mode){ S.mode = t.dataset.mode; S.article = null; render(); window.scrollTo({top:0,behavior:'smooth'}); return; }
+  if (t.dataset.article){ S.mode = 'article'; S.article = t.dataset.article; render(); window.scrollTo({top:0,behavior:'smooth'}); }
+});
+document.getElementById('q').oninput = e => { S.q = e.target.value; render(); };
+
+const saved = localStorage.getItem('sm-theme');
+document.documentElement.dataset.theme = saved || 'dark';
+document.getElementById('theme').onclick = () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next; localStorage.setItem('sm-theme', next);
+};
+
+(async function init(){
+  try{
+    const [sc, la, rd] = await Promise.all([api('/api/scenes'), api('/api/layers'), api('/api/reading')]);
+    S.scenes = sc.scenes; S.layers = la.layers; S.reading = rd.reading;
+    render();
+  } catch(err){ desc.textContent = '無法載入：' + err.message; }
+})();
+</script>
+</body>
+</html>

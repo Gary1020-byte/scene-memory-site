@@ -3,3 +3,5 @@ data/db.sqlite3-wal
 data/db.sqlite3-shm
 data/db.json
 node_modules/
+public/downloads/
+.tmp-dl/
