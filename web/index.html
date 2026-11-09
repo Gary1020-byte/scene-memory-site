@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>場景記憶架構 · 資料庫後端</title>
+<style>
+:root{
+  --pink:#FE90E8; --blue:#C0F7FE; --green:#99E885; --yellow:#F7CB46; --cream:#FFDC8B;
+  --black:#000; --white:#fff; --offwhite:#FFFDF5;
+  --border:4px solid var(--black); --shadow:8px 8px 0 var(--black); --shadow-sm:4px 4px 0 var(--black);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter','Noto Sans TC',system-ui,sans-serif;background:var(--offwhite);color:var(--black);min-height:100vh}
+.wrap{max-width:1500px;margin:0 auto;padding:26px 26px 90px}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+h1{font-size:32px;font-weight:900;background:var(--yellow);border:var(--border);box-shadow:var(--shadow);
+   padding:10px 20px;display:inline-block}
+.hmeta{display:flex;flex-direction:column;gap:3px;font-size:13px;font-weight:600}
+.hmeta b{font-size:15px}
+.hmeta span{color:#555}
+input#q{background:var(--white);border:var(--border);box-shadow:var(--shadow-sm);padding:9px 14px;
+  font-family:inherit;font-size:13px;font-weight:600;min-width:240px}
+button.btn{background:var(--blue);border:var(--border);box-shadow:var(--shadow-sm);padding:8px 14px;
+  font-weight:800;font-size:12px;cursor:pointer;font-family:inherit}
+button.btn:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--black)}
+button.btn.on{background:var(--green)}
+.chain{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin-bottom:30px}
+.cblock{border:var(--border);box-shadow:var(--shadow);padding:13px 16px;flex:1 1 190px;min-width:0}
+.cblock h4{font-size:14px;font-weight:900;margin-bottom:5px}
+.cblock p{font-size:12px;line-height:1.5;font-weight:500}
+.cblock code{background:rgba(0,0,0,.09);padding:1px 4px;font-size:11px;font-weight:700}
+.c1{background:var(--cream)} .c2{background:var(--blue)} .c3{background:var(--green)} .c4{background:var(--pink)}
+.cjoin{width:34px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;flex:none}
+.sec-h{display:flex;align-items:center;gap:12px;margin:34px 0 16px}
+.sec-h h2{font-size:22px;font-weight:900;background:var(--black);color:var(--offwhite);padding:6px 16px}
+.sec-h .line{flex:1;height:4px;background:var(--black)}
+.sec-h .cnt{font-weight:900;font-size:13px;background:var(--yellow);border:3px solid var(--black);padding:3px 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:22px}
+.card{border:var(--border);box-shadow:var(--shadow);background:var(--white);display:flex;flex-direction:column}
+.card-h{background:var(--black);color:var(--offwhite);padding:9px 13px;display:flex;align-items:center;gap:9px}
+.card-h .nm{font-weight:900;font-size:16px}
+.card-h .st{margin-left:auto;font-size:10.5px;font-weight:800;background:var(--yellow);color:var(--black);
+  border:2px solid var(--offwhite);padding:1px 7px}
+.pill{font-size:10.5px;font-weight:800;padding:1px 6px;border:2px solid var(--offwhite)}
+.pill.ok{color:var(--green)} .pill.bad{color:var(--pink)} .pill.info{color:var(--blue)}
+.items{display:grid;grid-template-columns:1fr 1fr;border-top:var(--border)}
+.item{border-right:var(--border);border-bottom:var(--border);padding:8px 10px;cursor:pointer;
+  background:var(--offwhite);transition:.12s;min-height:58px}
+.item:nth-child(2n){border-right:none}
+.item:hover{background:var(--yellow)}
+.item .fn{font-weight:900;font-size:11.5px;line-height:1.25;display:block;word-break:break-all}
+.item .fr{font-size:10px;font-weight:700;color:#444;display:block;margin-top:2px}
+.item.miss{background:#eee;color:#888;cursor:default}
+.item.miss .fn{text-decoration:line-through}
+.item.miss:hover{background:#eee}
+.bars{padding:10px 12px;border-top:var(--border);display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:10.5px;font-weight:800;border:2px solid var(--black);padding:2px 7px;background:var(--blue);cursor:pointer}
+.tag:hover{background:var(--yellow)}
+.concept{border:var(--border);box-shadow:var(--shadow);background:var(--white);padding:14px 16px;cursor:pointer}
+.concept:hover{background:var(--yellow)}
+.concept h3{font-size:16px;font-weight:900;margin-bottom:6px}
+.concept .ty{font-size:10px;font-weight:800;background:var(--black);color:var(--yellow);padding:1px 7px;margin-left:8px}
+.concept p{font-size:12.5px;line-height:1.55;color:#333}
+#drawer{position:fixed;top:0;right:0;width:min(760px,94vw);height:100%;background:var(--white);
+  border-left:var(--border);box-shadow:-8px 0 0 var(--black);transform:translateX(105%);transition:transform .2s;z-index:40}
+#drawer.open{transform:none}
+.dr-h{background:var(--black);color:var(--offwhite);padding:12px 16px;display:flex;align-items:center;gap:10px}
+.dr-h h3{font-size:17px;font-weight:900}
+.dr-x{margin-left:auto;background:none;border:2px solid var(--offwhite);color:var(--offwhite);
+  font-size:18px;width:30px;height:30px;cursor:pointer;font-weight:900}
+.dr-b{padding:16px;overflow:auto;height:calc(100% - 58px)}
+.dr-b h4{font-weight:900;margin:16px 0 6px;font-size:15px;border-bottom:3px solid var(--black);padding-bottom:3px}
+.dr-b pre{background:var(--offwhite);border:var(--border);box-shadow:var(--shadow-sm);padding:11px;
+  font-size:11.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word;overflow:auto;max-height:460px}
+.dr-b .meta{font-size:11.5px;color:#555;font-weight:700;margin-bottom:8px}
+.dr-b .blk{margin-bottom:10px}
+.dr-b .blk h5{font-weight:900;font-size:13.5px;margin-bottom:3px}
+.dr-b .blk p{font-size:12.5px;line-height:1.55;white-space:pre-wrap}
+.links a{display:inline-block;font-size:11.5px;font-weight:800;background:var(--blue);border:2px solid var(--black);
+  padding:2px 8px;margin:3px 4px 0 0;cursor:pointer;text-decoration:none;color:var(--black)}
+.links a:hover{background:var(--yellow)}
+#mask{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:35;display:none}
+#mask.on{display:block}
+#status{position:fixed;left:10px;bottom:8px;font-size:11px;font-weight:700;color:#666;z-index:50}
+table.t{width:100%;border-collapse:collapse;font-size:12px}
+table.t th,table.t td{border:2px solid var(--black);padding:5px 8px;text-align:left}
+table.t th{background:var(--black);color:var(--offwhite);font-weight:800}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>場景記憶架構</h1>
+    <div class="hmeta">
+      <b>資料庫後端 · 場景 ＋ 概念 ＋ 連結圖</b>
+      <span id="meta-line">載入中…</span>
+    </div>
+    <div style="flex:1"></div>
+    <input id="q" placeholder="搜場景 / 檔案 / 技能 / 概念…">
+    <button class="btn" id="btn-scenes">場景</button>
+    <button class="btn" id="btn-concepts">概念</button>
+    <button class="btn" id="btn-graph">連結圖</button>
+    <button class="btn" id="btn-shared">共享層</button>
+  </header>
+
+  <div class="chain">
+    <div class="cblock c1"><h4>① 全域注入層</h4>
+      <p><code>~/.dsh/AGENTS.md</code> 每輪注入給<b>所有</b>場景。只寫「不讀就白干」的鐵律，越短越好。</p></div>
+    <div class="cjoin">→</div>
+    <div class="cblock c2"><h4>② 場景私有層</h4>
+      <p>各場景自己的 <code>AGENTS.md</code> ＋ <code>場景私有記憶.md</code>。§〇 交接 ≤4 KB，開場就讀。</p></div>
+    <div class="cjoin">→</div>
+    <div class="cblock c3"><h4>③ 場景邊界</h4>
+      <p><code>.git/</code> 就是路由表。引擎往上找第一個含 .git 的目錄 → 只載入那棵樹的技能。</p></div>
+    <div class="cjoin">→</div>
+    <div class="cblock c4"><h4>④ 派單與回執</h4>
+      <p>路由 → 派單 → owner 動手 → 回執。<b>一次派單 = 一條回執</b>，「活幹完但對方不知道」＝沒幹完。</p></div>
+  </div>
+
+  <div class="sec-h"><h2 id="sec-title">場景</h2><div class="line"></div><div class="cnt" id="cnt">–</div></div>
+  <div id="main"></div>
+</div>
+
+<div id="mask"></div>
+<div id="drawer">
+  <div class="dr-h"><h3 id="dr-t">–</h3><button class="dr-x" id="dr-x">×</button></div>
+  <div class="dr-b" id="dr-b"></div>
+</div>
+<div id="status"></div>
+
+<script>
+const API = '';
+const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const kb = n => n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(1) + ' KB' : (n/1048576).toFixed(1) + ' MB';
+
+const S = { scenes: [], concepts: [], shared: [], graph: {nodes:[],edges:[]}, mode: 'scenes', q: '' };
+
+async function api(p){ const r = await fetch(API + p); if(!r.ok) throw new Error(p + ' → ' + r.status); return r.json(); }
+
+const drawer = document.getElementById('drawer'), mask = document.getElementById('mask');
+function openDrawer(title, html){ document.getElementById('dr-t').textContent = title; document.getElementById('dr-b').innerHTML = html;
+  drawer.classList.add('open'); mask.classList.add('on'); }
+function closeDrawer(){ drawer.classList.remove('open'); mask.classList.remove('on'); }
+document.getElementById('dr-x').onclick = closeDrawer; mask.onclick = closeDrawer;
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeDrawer(); });
+
+const COLORS = { 'AGENTS.md':'var(--cream)','定位卡.md':'var(--yellow)','身份卡.md':'var(--blue)',
+  '場景畫像.md':'var(--pink)','場景私有記憶.md':'var(--green)','專案記憶/':'var(--blue)',
+  '歸檔/':'var(--cream)','_檔案索引.md':'var(--cream)' };
+
+function sceneCard(s){
+  const h = '<div class="card-h"><span class="nm">' + esc(s.name) + '</span>' +
+    '<span class="pill ' + (s.has_git?'ok':'bad') + '">' + (s.has_git?'.git ✓':'缺 .git') + '</span>' +
+    '<span class="st">§〇 ' + kb(s.handover_size) + ' · ' + s.skill_count + ' 技能</span></div>';
+  const items = s.files.map(f => {
+    const miss = f.kind === 'missing';
+    return '<div class="item' + (miss?' miss':'') + '" data-scene="' + esc(s.id) + '" data-file="' + esc(f.name) + '">' +
+      '<span class="fn" style="background:' + (COLORS[f.name]||'var(--offwhite)') + '">' + esc(f.name) + '</span>' +
+      '<span class="fr">' + esc(f.role) + ' · ' + kb(f.size) + (f.count!=null?' · '+f.count+'檔':'') + '</span></div>';
+  }).join('');
+  const tags = s.skills.map(k => '<span class="tag" data-skill="' + esc(k.name) + '">' + esc(k.name) + '</span>').join('');
+  return '<div class="card">' + h + '<div class="items">' + items + '</div>' + (tags ? '<div class="bars">' + tags + '</div>' : '') + '</div>';
+}
+
+function conceptCard(c){
+  const n = (c.blocks||[]).length;
+  return '<div class="concept" data-slug="' + esc(c.slug) + '"><h3>' + esc(c.title) +
+    '<span class="ty">' + esc(c.type) + '</span></h3><p>' + esc((c.summary||'').slice(0,220)) +
+    (n ? ' <span class="pill info">' + n + ' 區塊</span>' : '') + '</p></div>';
+}
+
+async function openScene(id, fileName){
+  const s = await api('/api/scenes/' + encodeURIComponent(id));
+  let html = '<div class="meta">' + esc(s.path) + '</div>';
+  html += '<h4>場景資訊</h4><table class="t"><tr><th>項目</th><th>值</th></tr>' +
+    '<tr><td>.git</td><td>' + (s.has_git?'有 ✓':'缺 ✗') + '</td></tr>' +
+    '<tr><td>§〇 大小</td><td>' + kb(s.handover_size) + '</td></tr>' +
+    '<tr><td>技能</td><td>' + s.skill_count + '</td></tr>' +
+    '<tr><td>面板</td><td>' + (s.panels||[]).map(p=>esc(p.id)).join(', ') + '</td></tr></table>';
+  html += '<h4>§〇 當前交接</h4><pre>' + esc(s.handover || '(無)') + '</pre>';
+  html += '<h4>技能</h4><div class="links">' + (s.skills||[]).map(k =>
+    '<a data-skill="' + esc(k.name) + '">' + esc(k.name) + ' <small>' + kb(k.size) + '</small></a>').join('') + '</div>';
+  if (fileName){
+    const f = await api('/api/scenes/' + encodeURIComponent(id) + '/files/' + encodeURIComponent(fileName));
+    html += '<h4>' + esc(f.name) + ' <small style="font-weight:700">（' + esc(f.role) + ' · ' + kb(f.size) + '）</small></h4>';
+    html += '<p style="font-size:12px;color:#555;margin-bottom:6px">' + esc(f.desc||'') + '</p>';
+    html += '<pre>' + esc(f.content || '(空或目錄)') + '</pre>';
+  }
+  openDrawer(s.name, html);
+}
+
+async function openConcept(slug){
+  const c = await api('/api/concepts/' + encodeURIComponent(slug));
+  let html = '<div class="meta">' + esc(c.type) + ' · ' + esc(c.path||'') + '</div>';
+  html += '<p style="font-size:13px;line-height:1.6;margin-bottom:8px">' + esc(c.summary||'') + '</p>';
+  html += '<h4>區塊</h4>';
+  for (const b of (c.blocks||[])){
+    if (!b.body) continue;
+    html += '<div class="blk"><h5>' + esc(b.heading||'') + '</h5><p>' + esc(b.body.slice(0,1600)) +
+      (b.body.length > 1600 ? '\n…（完整內容見原始 md）' : '') + '</p></div>';
+  }
+  const rel = S.graph.edges.filter(e => e.src === slug);
+  if (rel.length) html += '<h4>連結</h4><div class="links">' + rel.map(e =>
+    '<a data-node="' + esc(e.dst) + '">' + esc(e.dst) + ' <small>' + esc(e.kind) + '</small></a>').join('') + '</div>';
+  openDrawer(c.title, html);
+}
+
+async function openShared(name){
+  const f = S.shared.find(x => x.name === name);
+  openDrawer(name, '<div class="meta">' + kb(f.size) + '</div><pre>' + esc(f.content||'') + '</pre>');
+}
+
+function render(){
+  const main = document.getElementById('main');
+  const t = document.getElementById('sec-title');
+  const q = S.q.toLowerCase();
+  if (S.mode === 'scenes'){
+    t.textContent = '場景';
+    const list = S.scenes.filter(s => !q || s.name.toLowerCase().includes(q) ||
+      s.skills.some(k => k.name.toLowerCase().includes(q)) ||
+      s.files.some(f => f.name.toLowerCase().includes(q)));
+    document.getElementById('cnt').textContent = list.length;
+    main.innerHTML = '<div class="grid">' + list.map(sceneCard).join('') + '</div>';
+  } else if (S.mode === 'concepts'){
+    t.textContent = '概念頁';
+    const list = S.concepts.filter(c => !q || (c.title+c.slug+(c.summary||'')).toLowerCase().includes(q));
+    document.getElementById('cnt').textContent = list.length;
+    main.innerHTML = '<div class="grid">' + list.map(conceptCard).join('') + '</div>';
+  } else if (S.mode === 'graph'){
+    t.textContent = '連結圖';
+    document.getElementById('cnt').textContent = S.graph.edges.length;
+    const rows = S.graph.edges.map(e => '<tr><td>' + esc(e.src) + '</td><td>' + esc(e.dst) + '</td><td>' + esc(e.kind) + '</td></tr>').join('');
+    const nodeRows = S.graph.nodes.map(n => '<tr><td>' + esc(n.id) + '</td><td>' + esc(n.label) + '</td><td>' + esc(n.group) + '</td></tr>').join('');
+    main.innerHTML = '<h4>邊（edges）</h4><table class="t"><tr><th>src</th><th>dst</th><th>kind</th></tr>' + rows + '</table>' +
+      '<h4 style="margin-top:22px">節點（nodes）</h4><table class="t"><tr><th>id</th><th>label</th><th>group</th></tr>' + nodeRows + '</table>';
+  } else {
+    t.textContent = '共享層';
+    document.getElementById('cnt').textContent = S.shared.length;
+    main.innerHTML = '<div class="grid">' + S.shared.map(f =>
+      '<div class="concept" data-shared="' + esc(f.name) + '"><h3>' + esc(f.name) + '</h3><p>' + kb(f.size) + '</p></div>').join('') + '</div>';
+  }
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-scene],[data-file],[data-slug],[data-shared],[data-skill],[data-node]');
+  if (!t) return;
+  if (t.dataset.scene && t.dataset.file) openScene(t.dataset.scene, t.dataset.file);
+  else if (t.dataset.scene) openScene(t.dataset.scene);
+  else if (t.dataset.slug) openConcept(t.dataset.slug);
+  else if (t.dataset.shared) openShared(t.dataset.shared);
+  else if (t.dataset.skill){ document.getElementById('q').value = t.dataset.skill; S.q = t.dataset.skill; S.mode='scenes'; render(); }
+  else if (t.dataset.node){
+    if (S.graph.nodes.some(n => n.id === t.dataset.node && n.group === 'concept')) openConcept(t.dataset.node);
+    else { S.q = t.dataset.node; S.mode = 'scenes'; render(); }
+  }
+});
+
+document.getElementById('q').oninput = e => { S.q = e.target.value; render(); };
+for (const [id, mode] of [['btn-scenes','scenes'],['btn-concepts','concepts'],['btn-graph','graph'],['btn-shared','shared']]){
+  document.getElementById(id).onclick = () => {
+    S.mode = mode;
+    for (const b of document.querySelectorAll('.btn')) b.classList.remove('on');
+    document.getElementById(id).classList.add('on');
+    render();
+  };
+}
+
+(async function init(){
+  try{
+    const [meta, sc, co, sh, gr] = await Promise.all([
+      api('/api/meta'), api('/api/scenes'), api('/api/concepts'), api('/api/shared'), api('/api/graph')]);
+    S.scenes = sc.scenes; S.concepts = co.concepts; S.shared = sh.shared; S.graph = gr;
+    const c = meta.counts;
+    document.getElementById('meta-line').textContent =
+      c.scenes + ' 場景 · ' + c.skills + ' 技能 · ' + c.concepts + ' 概念頁 · ' + c.edges + ' 連結 · built ' + meta.meta.built_at.slice(0,16);
+    document.getElementById('status').textContent = 'API ' + meta.db_path + ' · ' + kb(meta.db_size);
+    document.getElementById('btn-scenes').classList.add('on');
+    render();
+  } catch(err){
+    document.getElementById('meta-line').textContent = '後端未連上：' + err.message;
+  }
+})();
+</script>
+</body>
+</html>
