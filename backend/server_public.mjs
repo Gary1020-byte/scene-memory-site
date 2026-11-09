@@ -86,13 +86,27 @@ const server = http.createServer((req, res) => {
     return send(res, 200, fs.readFileSync(f), MIME['.zip'])
   }
 
-  // 靜態（site/）
-  let rel = p === '/' ? '/index.html' : p
-  rel = path.normalize(rel).replace(/^(\.\.[/\\])+/, '')
+  // ── 靜態（site/）+ 多頁路由 ──
+  const ROUTES = {
+    '/': 'index.html',
+    '/architecture': 'architecture.html',
+    '/scenes': 'scenes.html',
+    '/reading': 'reading.html',
+    '/start': 'start.html',
+  }
+  let rel = ROUTES[p]
+  if (!rel && p.startsWith('/reading/')) rel = 'reading-article.html'   // 導讀文章
+  if (!rel) {
+    rel = path.normalize(p).replace(/^(\.\.[/\\])+/, '')
+    if (rel === '/') rel = '/index.html'
+  }
   const f = path.join(SITE, rel)
   if (f.startsWith(SITE) && fs.existsSync(f) && fs.statSync(f).isFile()) {
     return send(res, 200, fs.readFileSync(f), MIME[path.extname(f)] || 'application/octet-stream')
   }
+  // 未知路徑 → 首頁（單頁 app 風格 fallback）
+  const idx = path.join(SITE, 'index.html')
+  if (fs.existsSync(idx)) return send(res, 200, fs.readFileSync(idx), MIME['.html'])
   send(res, 404, { error: 'not found', path: p })
 })
 

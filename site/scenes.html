@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>場景 · Gary 的場景記憶架構</title>
+<meta name="description" content="每個場景是一類會反覆回來的活。下載骨架，自己開一個。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/vars-light.css">
+<link rel="stylesheet" href="/assets/vars-dark.css">
+<link rel="stylesheet" href="/assets/aurora-components.css">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body data-page="scenes">
+<div class="orbs"><div class="orb orb-gold orb-a"></div><div class="orb orb-mauve orb-b"></div><div class="orb orb-purple orb-c"></div></div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="mark">Gary 的場景記憶架構</div></div>
+    <nav class="nav" id="nav"></nav>
+    <div>
+      <div class="label" style="margin-bottom:var(--space-sm)">導讀</div>
+      <div class="reading" id="reading"></div>
+    </div>
+    <div style="margin-top:auto" class="row">
+      <button class="btn btn-secondary" id="theme">切換亮／暗</button>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="top">
+      <div class="title">
+        <h1>場景</h1>
+        <div class="desc">每個場景是一類會反覆回來的活。下載骨架，自己開一個。</div>
+      </div>
+      <div class="tools"><input class="field" id="q" placeholder="搜場景" style="width:220px"></div>
+    </div>
+    <div id="filters" class="filters"></div>
+    <div class="scene-grid" id="grid"></div>
+    <div class="empty" id="no-result" style="display:none">沒有符合的場景。</div>
+
+  </main>
+</div>
+<script src="/assets/site.js"></script>
+<script>
+
+const TAGS = {
+  'dev':        ['開發工具'],
+  'knowledge':  ['知識庫','考古題庫','NTU 課程','英語學習'],
+  'media':      ['影片剪輯','動態圖像','視覺生成','音效配樂','語音合成','簡報設計'],
+  'ops':        ['郵件處理','每日簡報','社群發布','產品發布','內容創作','資訊策展','本地電腦'],
+  'analysis':   ['股票研究','自我復盤','食譜','主控端','文件處理','新增場景'],
+};
+function tagOf(name){
+  for (const [k, list] of Object.entries(TAGS)) if (list.includes(name)) return k;
+  return 'other';
+}
+const TAG_LABEL = { dev:'開發', knowledge:'知識', media:'影音', ops:'日常運作', analysis:'分析與整理', other:'其他' };
+
+let activeTag = null;
+window.pageInit = function(S){
+  const f = document.getElementById('filters');
+  const groups = {};
+  S.scenes.forEach(s => { const t = tagOf(s.name); (groups[t] = groups[t]||[]).push(s); });
+  f.innerHTML = Object.entries(groups).map(([t, list]) =>
+    `<button class="chip chip-outline tagf ${activeTag===t?'on':''}" data-tag="${t}">${esc(TAG_LABEL[t]||t)} <span class="mono">${list.length}</span></button>`).join('');
+  renderScenes(S);
+  f.onclick = e => { const b = e.target.closest('[data-tag]'); if(!b) return;
+    activeTag = activeTag === b.dataset.tag ? null : b.dataset.tag; window.pageInit(S); };
+  document.getElementById('q').oninput = renderScenes;
+};
+
+function renderScenes(S){
+  const q = (document.getElementById('q').value||'').toLowerCase();
+  const list = S.scenes.filter(s =>
+    (!activeTag || tagOf(s.name) === activeTag) &&
+    (!q || s.name.toLowerCase().includes(q) || s.purpose.toLowerCase().includes(q) || s.id.includes(q)));
+  document.getElementById('grid').innerHTML = list.map(s => `
+    <div class="scene-card glass card">
+      <div class="sc-top"><h3>${esc(s.name)}</h3><span class="sid">${esc(s.id)}</span></div>
+      <div class="purpose">${esc(s.purpose)}</div>
+      ${s.boundary?`<div class="boundary"><span class="cap">邊界</span>${esc(s.boundary)}</div>`:''}
+      <div class="sc-meta">
+        <span>${(s.skills||[]).length} 專屬技能</span><span>·</span>
+        <span>${s.panel_count} 面板</span><span>·</span>
+        <span>${s.file_count} 記憶檔</span>
+      </div>
+      <div class="sc-skills">${(s.skills||[]).map(k=>`<span class="chip chip-outline">${esc(k)}</span>`).join('')}</div>
+      <div class="sc-actions">
+        <a class="btn btn-primary dl" href="${BASE}/downloads/${esc(s.download)}" download>↓ 下載骨架</a>
+      </div>
+    </div>`).join('');
+  document.getElementById('no-result').style.display = list.length ? 'none' : 'block';
+}
+
+</script>
+</body>
+</html>
