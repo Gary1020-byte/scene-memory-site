@@ -92,10 +92,59 @@ function graph () {
 function search (term) {
   if (!term) return { scenes: [], concepts: [], files: [] }
   const like = '%' + term + '%'
+  // 場景：名稱 / 路徑 / 技能名 / 技能描述 / 記憶檔內容
+  const ids = q(
+    `SELECT DISTINCT s.id FROM scenes s
+     LEFT JOIN scene_skills k ON k.scene = s.id
+     LEFT JOIN scene_files  f ON f.scene = s.id
+     WHERE s.name LIKE ? OR s.path LIKE ? OR k.name LIKE ? OR k.desc LIKE ? OR f.name LIKE ? OR f.content LIKE ?`,
+    like, like, like, like, like, like).map(r => r.id)
+  const scenes = ids.map(fullScene)
   return {
-    scenes: q('SELECT id,name,path FROM scenes WHERE name LIKE ? OR path LIKE ?', like, like),
+    scenes,
     concepts: q('SELECT slug,title,type,summary FROM concepts WHERE title LIKE ? OR summary LIKE ? OR body LIKE ?', like, like, like),
     files: q('SELECT scene,name,role,desc FROM scene_files WHERE name LIKE ? OR content LIKE ?', like, like).slice(0, 200),
+  }
+}
+
+
+/**
+ * legacyPayload —— 相容於舊版 build_map.py 的 payload 格式
+ * 讓「另一個 session 的互動設計圖」可以一行改成 fetch：
+ *    const DB = await (await fetch('/api/legacy.json')).json()
+ * 而不必重寫整個前端。
+ */
+function legacyPayload () {
+  const meta = Object.fromEntries(q('SELECT key,value FROM meta').map(r => [r.key, r.value]))
+  const shared = {}
+  for (const r of q('SELECT * FROM shared_files')) shared[r.name] = { size: r.size, content: (r.content || '').slice(0, 4000) }
+  const scenes = q('SELECT id FROM scenes ORDER BY name').map(r => {
+    const s = fullScene(r.id)
+    const files = {}
+    const contents = {}
+    for (const f of s.files) {
+      const { content, ...rest } = f
+      files[f.name] = rest
+      contents[f.name] = content || ''
+    }
+    return {
+      name: s.name,
+      path: s.path.replace(/^\/home\/gary/, '~'),
+      has_git: !!s.has_git,
+      skills: s.skills.map(k => ({ name: k.name, size: k.size, desc: k.desc })),
+      panels: s.panels.map(p => ({ id: p.id, title: p.title })),
+      handover: s.handover || '',
+      handover_size: s.handover_size || 0,
+      files,
+      contents,
+    }
+  })
+  return {
+    generated_at: meta.built_at || '',
+    root: (meta.scene_root || '').replace(/^\/home\/gary/, '~'),
+    scene_count: scenes.length,
+    shared,
+    scenes,
   }
 }
 
@@ -126,6 +175,7 @@ const server = http.createServer((req, res) => {
   if (p === '/api/concepts') return send(res, 200, { concepts: listConcepts() })
   if (p === '/api/graph') return send(res, 200, graph())
   if (p === '/api/search') return send(res, 200, search(url.searchParams.get('q')))
+  if (p === '/api/legacy.json') return send(res, 200, legacyPayload())
   if (p === '/api/db.json') {
     const f = path.join(ROOT, 'data', 'db.json')
     if (!fs.existsSync(f)) return send(res, 404, { error: 'db.json 不存在，先跑 build_db.py --json' })

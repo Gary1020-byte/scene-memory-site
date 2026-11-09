@@ -40,6 +40,7 @@ node backend/server.mjs          # → http://127.0.0.1:8787
 | `GET /api/concepts/:slug` | 單一概念頁（含全文與所有 block） |
 | `GET /api/graph` | `{nodes, edges}` 連結圖 |
 | `GET /api/search?q=` | 跨場景 / 跨概念 / 跨檔案搜尋 |
+| `GET /api/legacy.json` | **相容舊版 build_map.py payload**（給另一個 session 的互動設計圖一行改 fetch） |
 | `GET /api/db.json` | 整包 JSON（靜態前端 fallback） |
 
 ## 資料表
@@ -82,7 +83,26 @@ sqlite3 data/db.sqlite3 "select name,handover_size from scenes order by handover
 > 但若之後要加「使用者寫入的資料」（例如收藏、註記），那些表要另外設計，
 > 不要塞進現有 schema 再靠 rebuild 保留。
 
-## 服務化（可選）
+## 怎麼讓「另一個 session 的互動設計圖」改用這個後端
+
+舊版前端是把 JSON **內嵌進 HTML**（616 KB 單檔）：
+
+```js
+// build_map.py:178
+const DB = __PAYLOAD__;
+```
+
+改成一行 fetch 即可，版面程式碼完全不用動：
+
+```js
+const DB = await (await fetch('http://127.0.0.1:8787/api/legacy.json')).json();
+```
+
+`/api/legacy.json` 保持與舊 payload **完全同構**（`generated_at` / `root` / `scene_count` / `shared{}` / `scenes[]`，每個 scene 含 `files{}` 與 `contents{}`），所以是純替換資料來源。
+
+> 保留 `scan_scenes.py` → `build_map.py` 作為**離線快照**用途（例如寄給別人看、或做單檔分發）；日常改成打 API。
+
+## 服務化（已啟用）
 
 ```ini
 # ~/.config/systemd/user/scene-memory-backend.service
@@ -101,5 +121,8 @@ WantedBy=default.target
 ```
 
 ```bash
-systemctl --user enable --now scene-memory-backend
+cp deploy/scene-memory-backend.service ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now scene-memory-backend
 ```
+
+已於 2026-11-09 啟用（開機自啟、`Restart=on-failure`）。

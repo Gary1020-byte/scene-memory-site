@@ -134,7 +134,7 @@ const API = '';
 const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const kb = n => n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(1) + ' KB' : (n/1048576).toFixed(1) + ' MB';
 
-const S = { scenes: [], concepts: [], shared: [], graph: {nodes:[],edges:[]}, mode: 'scenes', q: '' };
+const S = { scenes: [], concepts: [], shared: [], graph: {nodes:[],edges:[]}, mode: 'scenes', q: '', searchScenes: null };
 
 async function api(p){ const r = await fetch(API + p); if(!r.ok) throw new Error(p + ' → ' + r.status); return r.json(); }
 
@@ -217,9 +217,11 @@ function render(){
   const q = S.q.toLowerCase();
   if (S.mode === 'scenes'){
     t.textContent = '場景';
-    const list = S.scenes.filter(s => !q || s.name.toLowerCase().includes(q) ||
-      s.skills.some(k => k.name.toLowerCase().includes(q)) ||
-      s.files.some(f => f.name.toLowerCase().includes(q)));
+    const list = S.searchScenes
+      ? S.searchScenes
+      : S.scenes.filter(s => !q || s.name.toLowerCase().includes(q) ||
+          s.skills.some(k => k.name.toLowerCase().includes(q)) ||
+          s.files.some(f => f.name.toLowerCase().includes(q)));
     document.getElementById('cnt').textContent = list.length;
     main.innerHTML = '<div class="grid">' + list.map(sceneCard).join('') + '</div>';
   } else if (S.mode === 'concepts'){
@@ -249,14 +251,27 @@ document.addEventListener('click', e => {
   else if (t.dataset.scene) openScene(t.dataset.scene);
   else if (t.dataset.slug) openConcept(t.dataset.slug);
   else if (t.dataset.shared) openShared(t.dataset.shared);
-  else if (t.dataset.skill){ document.getElementById('q').value = t.dataset.skill; S.q = t.dataset.skill; S.mode='scenes'; render(); }
+  else if (t.dataset.skill){ document.getElementById('q').value = t.dataset.skill; S.q = t.dataset.skill; S.searchScenes=null; S.mode='scenes'; render(); }
   else if (t.dataset.node){
     if (S.graph.nodes.some(n => n.id === t.dataset.node && n.group === 'concept')) openConcept(t.dataset.node);
     else { S.q = t.dataset.node; S.mode = 'scenes'; render(); }
   }
 });
 
-document.getElementById('q').oninput = e => { S.q = e.target.value; render(); };
+let searchTimer = null;
+document.getElementById('q').oninput = e => {
+  S.q = e.target.value;
+  clearTimeout(searchTimer);
+  const term = S.q.trim();
+  if (term.length < 2) { S.searchScenes = null; render(); return; }
+  searchTimer = setTimeout(async () => {
+    try {
+      const r = await api('/api/search?q=' + encodeURIComponent(term));
+      S.searchScenes = r.scenes;
+      render();
+    } catch(e) { /* 忽略 */ }
+  }, 180);
+};
 for (const [id, mode] of [['btn-scenes','scenes'],['btn-concepts','concepts'],['btn-graph','graph'],['btn-shared','shared']]){
   document.getElementById(id).onclick = () => {
     S.mode = mode;
