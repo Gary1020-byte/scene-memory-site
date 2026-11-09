@@ -1,0 +1,115 @@
+:root {
+
+  /* ===== LIGHT · 霧面紙 (frosted paper) =====
+     blur only · zero saturation · opaque border for edge definition
+     rim light is dropped on purpose: it needs a dark ground to read */
+  --c-bg: #FBF9F8;
+  --c-surface: #F6F4F2;
+  --c-surface-2: #F2EFED;
+  --c-border: #EEEAE7;
+  --c-border-strong: #EAE6E2;
+  --c-text: #6F677B;
+  /* 2026-10-18 重排成單調遞減的階梯: text 5.13:1 → text-muted 4.89:1
+     → text-secondary 3.95:1(皆對 --c-bg)。
+     原值 #AE9899 對 bg 只有 2.58:1, 落在 AA-large 門檻之下, 而它被
+     .secondary-text 當作可讀文字用,所以那是真缺陷不是刻意弱化。
+     三個值同屬 opium 色相家族(358°), 不是新增第五色。 */
+  --c-text-secondary: #8E7778;
+  --c-text-muted: #826768;
+  --c-heading: #32283F;
+  --c-accent: #DEC16B;
+  --c-accent-strong: #EAD597;
+  --c-accent-text: #675622;
+  --c-accent-deep: #392D06;
+  /* accent-fill 與 accent-deep 語意不同：deep 是「最深 accent 底」，
+     fill 是「實心 accent 底上的文字」。light 的 fill 底是 accent-strong，
+     所以填色文字回到主文字色。19-key 詞彙表與 dark 完全對齊。 */
+  --c-accent-fill: #EAD597;
+  --c-on-accent-fill: #32283F;
+  --c-on-accent: #32283F;
+  --c-on-accent-deep: #E6E1DD;
+  --c-focus-ring: #907B3C;
+  --c-focus-ring-on-accent: #32283F;
+
+  --mat-blur: 14px;
+  --mat-sat: 100%;
+  --mat-bg: rgba(255, 253, 250, 0.62);
+  --mat-border: #EAE6E2;
+  --mat-highlight: inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(50,40,63,0.04);
+  --mat-rim: none;
+  --mat-shadow:
+    0 1px 2px rgba(50,40,63,0.04),
+    0 10px 30px -12px rgba(50,40,63,0.10);
+
+  --shadow-sm: 0 1px 2px rgba(50,40,63,0.05);
+  --shadow:    0 4px 14px -6px rgba(50,40,63,0.10);
+  --shadow-lg: 0 18px 44px -14px rgba(50,40,63,0.16);
+  --shadow-accent: 0 6px 20px -8px rgba(222,193,107,0.55);
+
+  /* 光暈強度:2026-10-18 Gary 選「最強」。這把原本的關係反轉了 ——
+     原規則是亮=紙所以克制、暗=玻璃所以放手;現在是亮強暗弱。
+     保留這條註解是為了讓後人知道這是刻意反轉,不是寫錯了。
+
+     為什麼亮色可以有強光暈而不髒:光暈落在卡片「外圍」而不是卡面上,
+     卡面本身維持接近白色的均勻乳霧,所以文字對比不受影響。
+     AURORA-FIXED-PARAMETERS §材質分工 裡的霧面紙敘述仍成立,
+     改變的只是光照強度,不是材質本身。 */
+  --orb-gold-opacity: 0.72;
+  --orb-mauve-opacity: 0.62;
+  --orb-purple-opacity: 0.52;
+  --orb-blur: 76px;
+
+  /* ===== TYPOGRAPHY · 混搭 (role-divided) =====
+     base 16px · ratio 1.25
+     16px = web standard default, 閱讀舒適且通用
+     spacing 維持 4px grid 不變 —— 間距是版面結構,字級是閱讀尺寸,不必同比 */
+  --font-display: 'Source Serif 4','Noto Serif TC',Georgia,serif;
+  --font-body: 'Inter','Noto Sans TC',system-ui,sans-serif;
+  --font-mono: 'JetBrains Mono',ui-monospace,monospace;
+
+  /* type scale — base 16px, ratio 1.25 */
+  --text-body: 1rem;         /* 16px */
+  --text-h4: 1.25rem;        /* 20px */
+  --text-h3: 1.5625rem;      /* 25px */
+  --text-h2: 1.9531rem;      /* 31px */
+  --text-h1: 2.4414rem;      /* 39px */
+
+  /* 兩級獨立加,不在 1.25 倍數鏈上(16 × 1.25 = 20px 當小字太大) */
+  --text-caption: 0.875rem;  /* 14px */
+  --text-micro: 0.75rem;     /* 12px — uppercase label */
+
+  /* letter-spacing — inverse to size */
+  --tracking-display: -0.025em;
+  --tracking-h2: -0.02em;
+  --tracking-body: 0em;
+  --tracking-micro: 0.06em;
+
+  /* weight ladder — no skipped steps */
+  --weight-body: 400;
+  --weight-label: 500;
+  --weight-heading: 600;
+  --weight-display: 700;
+
+  /* ===== SPACING · 4px base grid ===== */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  /* ===== RADIUS ===== */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* ===== MOTION ===== */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 200ms;
+  --duration-normal: 400ms;
+  --duration-slow: 800ms;
+}

@@ -1,305 +1,469 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>場景記憶架構 · 資料庫後端</title>
+<title>場景記憶架構 · 資料庫</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/vars-light.css">
+<link rel="stylesheet" href="assets/vars-dark.css">
+<link rel="stylesheet" href="assets/aurora-components.css">
 <style>
-:root{
-  --pink:#FE90E8; --blue:#C0F7FE; --green:#99E885; --yellow:#F7CB46; --cream:#FFDC8B;
-  --black:#000; --white:#fff; --offwhite:#FFFDF5;
-  --border:4px solid var(--black); --shadow:8px 8px 0 var(--black); --shadow-sm:4px 4px 0 var(--black);
+/* vars-light 是 :root，vars-dark 是 [data-theme="dark"]。
+   預設深色（液態玻璃），可切回亮色（霧面紙）。 */
+html[data-theme="light"] { color-scheme: light; }
+html[data-theme="dark"]  { color-scheme: dark; }
+
+body { background: var(--c-bg); }
+.orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.orb { position: absolute; border-radius: 50%; filter: blur(var(--orb-blur)); }
+.orb-gold   { background: radial-gradient(circle, rgba(222,193,107,var(--orb-gold-opacity))   0%, transparent 70%); }
+.orb-mauve  { background: radial-gradient(circle, rgba(134,107,108,var(--orb-mauve-opacity))  0%, transparent 70%); }
+.orb-purple { background: radial-gradient(circle, rgba(50,40,63,var(--orb-purple-opacity))    0%, transparent 70%); }
+.orb-a { width: 44vw; height: 44vw; top: -12vw; left: -8vw;  animation: drift-a 28s var(--ease-out-expo) infinite; }
+.orb-b { width: 34vw; height: 34vw; bottom: -10vw; right: -6vw; animation: drift-b 34s var(--ease-out-expo) infinite; }
+.orb-c { width: 26vw; height: 26vw; top: 45%; left: 58%;     animation: drift-c 40s var(--ease-out-expo) infinite; }
+@keyframes drift-a { 0%,100%{transform:translate(0,0)} 50%{transform:translate(4vw,3vw)} }
+@keyframes drift-b { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-3vw,-4vw)} }
+@keyframes drift-c { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-5vw,2vw)} }
+
+/* ─────────── 版面：左側欄 + 主區 ─────────── */
+.app { position: relative; z-index: 1; display: grid; grid-template-columns: 300px 1fr; min-height: 100vh; }
+.sidebar {
+  position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+  scrollbar-width: thin;
+  border-right: 1px solid var(--c-border);
+  background: var(--c-surface); padding: var(--space-xl) var(--space-lg);
+  display: flex; flex-direction: column; gap: var(--space-lg);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 28px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 28px), transparent 100%);
 }
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter','Noto Sans TC',system-ui,sans-serif;background:var(--offwhite);color:var(--black);min-height:100vh}
-.wrap{max-width:1500px;margin:0 auto;padding:26px 26px 90px}
-header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
-h1{font-size:32px;font-weight:900;background:var(--yellow);border:var(--border);box-shadow:var(--shadow);
-   padding:10px 20px;display:inline-block}
-.hmeta{display:flex;flex-direction:column;gap:3px;font-size:13px;font-weight:600}
-.hmeta b{font-size:15px}
-.hmeta span{color:#555}
-input#q{background:var(--white);border:var(--border);box-shadow:var(--shadow-sm);padding:9px 14px;
-  font-family:inherit;font-size:13px;font-weight:600;min-width:240px}
-button.btn{background:var(--blue);border:var(--border);box-shadow:var(--shadow-sm);padding:8px 14px;
-  font-weight:800;font-size:12px;cursor:pointer;font-family:inherit}
-button.btn:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--black)}
-button.btn.on{background:var(--green)}
-.chain{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin-bottom:30px}
-.cblock{border:var(--border);box-shadow:var(--shadow);padding:13px 16px;flex:1 1 190px;min-width:0}
-.cblock h4{font-size:14px;font-weight:900;margin-bottom:5px}
-.cblock p{font-size:12px;line-height:1.5;font-weight:500}
-.cblock code{background:rgba(0,0,0,.09);padding:1px 4px;font-size:11px;font-weight:700}
-.c1{background:var(--cream)} .c2{background:var(--blue)} .c3{background:var(--green)} .c4{background:var(--pink)}
-.cjoin{width:34px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;flex:none}
-.sec-h{display:flex;align-items:center;gap:12px;margin:34px 0 16px}
-.sec-h h2{font-size:22px;font-weight:900;background:var(--black);color:var(--offwhite);padding:6px 16px}
-.sec-h .line{flex:1;height:4px;background:var(--black)}
-.sec-h .cnt{font-weight:900;font-size:13px;background:var(--yellow);border:3px solid var(--black);padding:3px 10px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:22px}
-.card{border:var(--border);box-shadow:var(--shadow);background:var(--white);display:flex;flex-direction:column}
-.card-h{background:var(--black);color:var(--offwhite);padding:9px 13px;display:flex;align-items:center;gap:9px}
-.card-h .nm{font-weight:900;font-size:16px}
-.card-h .st{margin-left:auto;font-size:10.5px;font-weight:800;background:var(--yellow);color:var(--black);
-  border:2px solid var(--offwhite);padding:1px 7px}
-.pill{font-size:10.5px;font-weight:800;padding:1px 6px;border:2px solid var(--offwhite)}
-.pill.ok{color:var(--green)} .pill.bad{color:var(--pink)} .pill.info{color:var(--blue)}
-.items{display:grid;grid-template-columns:1fr 1fr;border-top:var(--border)}
-.item{border-right:var(--border);border-bottom:var(--border);padding:8px 10px;cursor:pointer;
-  background:var(--offwhite);transition:.12s;min-height:58px}
-.item:nth-child(2n){border-right:none}
-.item:hover{background:var(--yellow)}
-.item .fn{font-weight:900;font-size:11.5px;line-height:1.25;display:block;word-break:break-all}
-.item .fr{font-size:10px;font-weight:700;color:#444;display:block;margin-top:2px}
-.item.miss{background:#eee;color:#888;cursor:default}
-.item.miss .fn{text-decoration:line-through}
-.item.miss:hover{background:#eee}
-.bars{padding:10px 12px;border-top:var(--border);display:flex;flex-wrap:wrap;gap:6px}
-.tag{font-size:10.5px;font-weight:800;border:2px solid var(--black);padding:2px 7px;background:var(--blue);cursor:pointer}
-.tag:hover{background:var(--yellow)}
-.concept{border:var(--border);box-shadow:var(--shadow);background:var(--white);padding:14px 16px;cursor:pointer}
-.concept:hover{background:var(--yellow)}
-.concept h3{font-size:16px;font-weight:900;margin-bottom:6px}
-.concept .ty{font-size:10px;font-weight:800;background:var(--black);color:var(--yellow);padding:1px 7px;margin-left:8px}
-.concept p{font-size:12.5px;line-height:1.55;color:#333}
-#drawer{position:fixed;top:0;right:0;width:min(760px,94vw);height:100%;background:var(--white);
-  border-left:var(--border);box-shadow:-8px 0 0 var(--black);transform:translateX(105%);transition:transform .2s;z-index:40}
-#drawer.open{transform:none}
-.dr-h{background:var(--black);color:var(--offwhite);padding:12px 16px;display:flex;align-items:center;gap:10px}
-.dr-h h3{font-size:17px;font-weight:900}
-.dr-x{margin-left:auto;background:none;border:2px solid var(--offwhite);color:var(--offwhite);
-  font-size:18px;width:30px;height:30px;cursor:pointer;font-weight:900}
-.dr-b{padding:16px;overflow:auto;height:calc(100% - 58px)}
-.dr-b h4{font-weight:900;margin:16px 0 6px;font-size:15px;border-bottom:3px solid var(--black);padding-bottom:3px}
-.dr-b pre{background:var(--offwhite);border:var(--border);box-shadow:var(--shadow-sm);padding:11px;
-  font-size:11.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word;overflow:auto;max-height:460px}
-.dr-b .meta{font-size:11.5px;color:#555;font-weight:700;margin-bottom:8px}
-.dr-b .blk{margin-bottom:10px}
-.dr-b .blk h5{font-weight:900;font-size:13.5px;margin-bottom:3px}
-.dr-b .blk p{font-size:12.5px;line-height:1.55;white-space:pre-wrap}
-.links a{display:inline-block;font-size:11.5px;font-weight:800;background:var(--blue);border:2px solid var(--black);
-  padding:2px 8px;margin:3px 4px 0 0;cursor:pointer;text-decoration:none;color:var(--black)}
-.links a:hover{background:var(--yellow)}
-#mask{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:35;display:none}
-#mask.on{display:block}
-#status{position:fixed;left:10px;bottom:8px;font-size:11px;font-weight:700;color:#666;z-index:50}
-table.t{width:100%;border-collapse:collapse;font-size:12px}
-table.t th,table.t td{border:2px solid var(--black);padding:5px 8px;text-align:left}
-table.t th{background:var(--black);color:var(--offwhite);font-weight:800}
+.sidebar::-webkit-scrollbar { width: 8px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--c-border-strong); border-radius: var(--radius-pill); }
+.sidebar::-webkit-scrollbar-thumb:hover { background: var(--c-text-muted); }
+.brand { display: flex; flex-direction: column; gap: var(--space-xs); }
+.brand .mark { font-family: var(--font-display); font-size: var(--text-h4); font-weight: var(--weight-display);
+  color: var(--c-heading); letter-spacing: var(--tracking-display); line-height: 1.25; }
+.brand .sub { font-size: var(--text-caption); color: var(--c-text-secondary); line-height: 1.5; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav-item {
+  display: flex; align-items: baseline; gap: var(--space-sm); width: 100%;
+  background: transparent; border: 0; border-left: 2px solid transparent;
+  padding: var(--space-sm) var(--space-sm); cursor: pointer; text-align: left;
+  font-family: var(--font-body); font-size: var(--text-caption); color: var(--c-text);
+  transition: background var(--duration-fast) var(--ease-out-expo);
+}
+.nav-item:hover { background: var(--c-surface-2); }
+.nav-item.on { background: var(--c-surface-2); border-left-color: var(--c-accent); color: var(--c-heading); font-weight: var(--weight-label); }
+.nav-item .n { font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-text-secondary); min-width: 20px; }
+.nav-item.on .n { color: var(--c-accent-text); }
+.nav-item .c { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-text-secondary); }
+
+.reading { display: flex; flex-direction: column; gap: var(--space-xs); }
+.reading-item {
+  display: grid; grid-template-columns: 22px 1fr; gap: var(--space-sm); align-items: start;
+  background: transparent; border: 0; padding: var(--space-sm); cursor: pointer; text-align: left;
+  font-family: var(--font-body); border-left: 2px solid transparent;
+  transition: background var(--duration-fast) var(--ease-out-expo);
+}
+.reading-item:hover { background: var(--c-surface-2); }
+.reading-item.on { background: var(--c-surface-2); border-left-color: var(--c-accent); }
+.reading-item .idx { font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-accent-text); padding-top: 2px; }
+.reading-item .t { font-size: var(--text-caption); color: var(--c-text); line-height: 1.45; }
+.reading-item.on .t { color: var(--c-heading); font-weight: var(--weight-label); }
+.reading-item .k { font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-text-secondary); opacity: .9; }
+
+.main { padding: var(--space-2xl) var(--space-2xl) var(--space-3xl); max-width: 1180px; }
+.top { display: flex; align-items: flex-start; gap: var(--space-lg); flex-wrap: wrap; margin-bottom: var(--space-xl); }
+.top .title { flex: 1; min-width: 260px; }
+.top h1 { font-size: var(--text-h2); margin-bottom: var(--space-xs); }
+.top .desc { font-size: var(--text-caption); color: var(--c-text-secondary); }
+.tools { display: flex; gap: var(--space-sm); align-items: center; flex-wrap: wrap; }
+
+.section-head { display: flex; align-items: baseline; gap: var(--space-md); margin: var(--space-xl) 0 var(--space-lg); }
+.section-head h2 { font-size: var(--text-h3); }
+.section-head .rule { flex: 1; height: 1px; background: var(--c-border); }
+.section-head .cnt { font-family: var(--font-mono); font-size: var(--text-caption); color: var(--c-accent-text); }
+
+/* ─────────── 場景卡 ─────────── */
+.scene-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-lg); }
+.scene-card { padding: 0; overflow: hidden; }
+.scene-top { display: flex; align-items: baseline; gap: var(--space-sm); padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--c-border); }
+.scene-top .nm { font-family: var(--font-display); font-size: var(--text-h4); font-weight: var(--weight-heading); color: var(--c-heading); }
+.scene-top .meta { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-text-secondary); }
+.scene-files { display: grid; grid-template-columns: 1fr 1fr; }
+.sf { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--c-border); cursor: pointer;
+  border-right: 1px solid var(--c-border); transition: background var(--duration-fast) var(--ease-out-expo); }
+.sf:nth-child(2n) { border-right: 0; }
+.sf:hover { background: var(--c-surface-2); }
+.sf.miss { opacity: .45; }
+.sf .fn { font-size: var(--text-caption); color: var(--c-text); display: block; }
+.sf .fr { font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-text-secondary); display: block; margin-top: 2px; }
+.scene-skills { display: flex; flex-wrap: wrap; gap: var(--space-xs); padding: var(--space-md) var(--space-lg); }
+.chip { font-family: var(--font-mono); font-size: var(--text-micro); padding: 2px 8px; cursor: pointer; }
+.chip:hover { background: var(--c-accent); color: var(--c-on-accent); }
+
+/* ─────────── 概念卡 ─────────── */
+.concept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-lg); }
+.concept-card { cursor: pointer; display: flex; flex-direction: column; gap: var(--space-sm); }
+.concept-card h3 { font-size: var(--text-h4); display: flex; align-items: baseline; gap: var(--space-sm); }
+.concept-card .type { font-family: var(--font-mono); font-size: var(--text-micro); color: var(--c-accent-text);
+  border: 1px solid var(--c-border-strong); padding: 1px 6px; }
+.concept-card p { font-size: var(--text-caption); color: var(--c-text); line-height: 1.6; }
+
+/* ─────────── 文章 ─────────── */
+.article { max-width: 780px; }
+.article h2 { font-size: var(--text-h3); margin: var(--space-2xl) 0 var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--c-border); }
+.article h3 { font-size: var(--text-h4); margin: var(--space-xl) 0 var(--space-sm); color: var(--c-heading); }
+.article h4 { font-size: var(--text-body); margin: var(--space-lg) 0 var(--space-sm); color: var(--c-heading); font-weight: var(--weight-heading); }
+.article p { margin: var(--space-sm) 0; line-height: 1.75; font-size: var(--text-caption); }
+.article ul, .article ol { margin: var(--space-sm) 0 var(--space-sm) var(--space-lg); line-height: 1.75; font-size: var(--text-caption); }
+.article li { margin: 2px 0; }
+.article strong { color: var(--c-heading); font-weight: var(--weight-label); }
+.article code { font-family: var(--font-mono); font-size: .86em; background: var(--c-surface-2);
+  border: 1px solid var(--c-border); padding: 1px 5px; color: var(--c-accent-text); }
+.article pre { background: var(--c-surface-2); border: 1px solid var(--c-border); padding: var(--space-md);
+  overflow-x: auto; margin: var(--space-md) 0; }
+.article pre code { background: none; border: 0; padding: 0; color: var(--c-text); font-size: var(--text-micro); line-height: 1.6; }
+.article blockquote { margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md);
+  border-left: 2px solid var(--c-accent); color: var(--c-text-secondary); font-style: normal; }
+.article blockquote p { margin: 0; }
+.article table { width: 100%; border-collapse: collapse; margin: var(--space-md) 0; font-size: var(--text-micro); }
+.article th, .article td { border: 1px solid var(--c-border); padding: 6px 10px; text-align: left; vertical-align: top; line-height: 1.6; }
+.article th { background: var(--c-surface-2); color: var(--c-heading); font-weight: var(--weight-label); }
+.article td code { font-size: .95em; }
+.article hr { border: 0; border-top: 1px solid var(--c-border); margin: var(--space-xl) 0; }
+.article a { color: var(--c-accent-text); }
+.article .wikilink { color: var(--c-accent-text); border-bottom: 1px dotted var(--c-accent); cursor: pointer; }
+
+/* ─────────── 抽屜 ─────────── */
+.drawer { position: fixed; top: 0; right: 0; width: min(720px, 94vw); height: 100vh; z-index: 40;
+  background: var(--c-surface); border-left: 1px solid var(--c-border-strong);
+  transform: translateX(105%); transition: transform var(--duration-normal) var(--ease-out-expo);
+  display: flex; flex-direction: column; }
+.drawer.open { transform: none; }
+.drawer-head { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-lg);
+  border-bottom: 1px solid var(--c-border); }
+.drawer-head h3 { font-size: var(--text-h4); }
+.drawer-head button { margin-left: auto; }
+.drawer-body { padding: var(--space-lg); overflow-y: auto; flex: 1; }
+.mask { position: fixed; inset: 0; background: rgba(17,12,25,.5); z-index: 35; display: none; }
+.mask.on { display: block; }
+
+/* placeholder 對比：components 預設用 text-muted，暗色下偏弱 */
+.field::placeholder { color: var(--c-text-secondary); opacity: .85; }
+label { color: var(--c-text-secondary); }
+
+table.data { width: 100%; border-collapse: collapse; font-size: var(--text-micro); }
+table.data th, table.data td { border: 1px solid var(--c-border); padding: 5px 9px; text-align: left; }
+table.data th { background: var(--c-surface-2); color: var(--c-heading); }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--c-border); }
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>場景記憶架構</h1>
-    <div class="hmeta">
-      <b>資料庫後端 · 場景 ＋ 概念 ＋ 連結圖</b>
-      <span id="meta-line">載入中…</span>
+<div class="orbs">
+  <div class="orb orb-gold orb-a"></div>
+  <div class="orb orb-mauve orb-b"></div>
+  <div class="orb orb-purple orb-c"></div>
+</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">場景記憶架構</div>
+      <div class="sub" id="brand-sub">記憶在檔案裡，不在會話裡</div>
     </div>
-    <div style="flex:1"></div>
-    <input id="q" placeholder="搜場景 / 檔案 / 技能 / 概念…">
-    <button class="btn" id="btn-scenes">場景</button>
-    <button class="btn" id="btn-concepts">概念</button>
-    <button class="btn" id="btn-graph">連結圖</button>
-    <button class="btn" id="btn-shared">共享層</button>
-  </header>
 
-  <div class="chain">
-    <div class="cblock c1"><h4>① 全域注入層</h4>
-      <p><code>~/.dsh/AGENTS.md</code> 每輪注入給<b>所有</b>場景。只寫「不讀就白干」的鐵律，越短越好。</p></div>
-    <div class="cjoin">→</div>
-    <div class="cblock c2"><h4>② 場景私有層</h4>
-      <p>各場景自己的 <code>AGENTS.md</code> ＋ <code>場景私有記憶.md</code>。§〇 交接 ≤4 KB，開場就讀。</p></div>
-    <div class="cjoin">→</div>
-    <div class="cblock c3"><h4>③ 場景邊界</h4>
-      <p><code>.git/</code> 就是路由表。引擎往上找第一個含 .git 的目錄 → 只載入那棵樹的技能。</p></div>
-    <div class="cjoin">→</div>
-    <div class="cblock c4"><h4>④ 派單與回執</h4>
-      <p>路由 → 派單 → owner 動手 → 回執。<b>一次派單 = 一條回執</b>，「活幹完但對方不知道」＝沒幹完。</p></div>
-  </div>
+    <nav class="nav" id="nav"></nav>
 
-  <div class="sec-h"><h2 id="sec-title">場景</h2><div class="line"></div><div class="cnt" id="cnt">–</div></div>
-  <div id="main"></div>
+    <div>
+      <div class="label" style="margin-bottom:var(--space-sm)">導讀</div>
+      <div class="reading" id="reading"></div>
+      <div class="label" style="margin-top:var(--space-sm);opacity:.7">↓ 側欄可獨立捲動</div>
+    </div>
+
+    <div style="margin-top:auto" class="row">
+      <button class="btn btn-secondary" id="theme">切換亮／暗</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <div class="title">
+        <h1 id="page-title">場景</h1>
+        <div class="desc" id="page-desc">資料庫後端 · 機器現況與架構知識</div>
+      </div>
+      <div class="tools">
+        <input class="field" id="q" placeholder="搜場景 / 檔案 / 技能 / 概念" style="width:240px">
+      </div>
+    </div>
+    <div id="view"></div>
+  </main>
 </div>
 
-<div id="mask"></div>
-<div id="drawer">
-  <div class="dr-h"><h3 id="dr-t">–</h3><button class="dr-x" id="dr-x">×</button></div>
-  <div class="dr-b" id="dr-b"></div>
-</div>
-<div id="status"></div>
+<div class="mask" id="mask"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head"><h3 id="drawer-title">–</h3><button class="btn btn-ghost" id="drawer-x">關閉</button></div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
 
 <script>
-// 基礎路徑：支援掛在子路徑下（例：https://host/scene-memory/）
-const BASE = (() => {
-  let p = location.pathname;
-  if (!p.endsWith('/')) p = p.replace(/[^/]*$/, '');
-  return p.replace(/\/$/, '');
-})();
+/* ───────── base path（支援掛在子路徑） ───────── */
+const BASE = (() => { let p = location.pathname; if (!p.endsWith('/')) p = p.replace(/[^/]*$/, ''); return p.replace(/\/$/, ''); })();
 const API = BASE;
 const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const kb = n => n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(1) + ' KB' : (n/1048576).toFixed(1) + ' MB';
 
-const S = { scenes: [], concepts: [], shared: [], graph: {nodes:[],edges:[]}, mode: 'scenes', q: '', searchScenes: null };
+/* ───────── mini markdown ───────── */
+function md(src){
+  const lines = String(src ?? '').split('\n');
+  let out = '', i = 0, inCode = false, codeBuf = [];
+  const inline = t => esc(t)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(（])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (m,a,b) => `<span class="wikilink" data-wl="${esc(a)}">${esc(b||a)}</span>`)
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
 
-async function api(p){ const r = await fetch(API + p); if(!r.ok) throw new Error(p + ' → ' + r.status); return r.json(); }
+  while (i < lines.length){
+    const L = lines[i];
+    if (/^```/.test(L)){
+      if (!inCode){ inCode = true; codeBuf = []; } else {
+        out += '<pre><code>' + esc(codeBuf.join('\n')) + '</code></pre>'; inCode = false;
+      }
+      i++; continue;
+    }
+    if (inCode){ codeBuf.push(L); i++; continue; }
 
-const drawer = document.getElementById('drawer'), mask = document.getElementById('mask');
-function openDrawer(title, html){ document.getElementById('dr-t').textContent = title; document.getElementById('dr-b').innerHTML = html;
-  drawer.classList.add('open'); mask.classList.add('on'); }
-function closeDrawer(){ drawer.classList.remove('open'); mask.classList.remove('on'); }
-document.getElementById('dr-x').onclick = closeDrawer; mask.onclick = closeDrawer;
-document.addEventListener('keydown', e => { if(e.key === 'Escape') closeDrawer(); });
-
-const COLORS = { 'AGENTS.md':'var(--cream)','定位卡.md':'var(--yellow)','身份卡.md':'var(--blue)',
-  '場景畫像.md':'var(--pink)','場景私有記憶.md':'var(--green)','專案記憶/':'var(--blue)',
-  '歸檔/':'var(--cream)','_檔案索引.md':'var(--cream)' };
-
-function sceneCard(s){
-  const h = '<div class="card-h"><span class="nm">' + esc(s.name) + '</span>' +
-    '<span class="pill ' + (s.has_git?'ok':'bad') + '">' + (s.has_git?'.git ✓':'缺 .git') + '</span>' +
-    '<span class="st">§〇 ' + kb(s.handover_size) + ' · ' + s.skill_count + ' 技能</span></div>';
-  const items = s.files.map(f => {
-    const miss = f.kind === 'missing';
-    return '<div class="item' + (miss?' miss':'') + '" data-scene="' + esc(s.id) + '" data-file="' + esc(f.name) + '">' +
-      '<span class="fn" style="background:' + (COLORS[f.name]||'var(--offwhite)') + '">' + esc(f.name) + '</span>' +
-      '<span class="fr">' + esc(f.role) + ' · ' + kb(f.size) + (f.count!=null?' · '+f.count+'檔':'') + '</span></div>';
-  }).join('');
-  const tags = s.skills.map(k => '<span class="tag" data-skill="' + esc(k.name) + '">' + esc(k.name) + '</span>').join('');
-  return '<div class="card">' + h + '<div class="items">' + items + '</div>' + (tags ? '<div class="bars">' + tags + '</div>' : '') + '</div>';
+    // table
+    if (/^\s*\|/.test(L) && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i+1]||'')){
+      const cells = r => r.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+      const head = cells(L);
+      i += 2;
+      const rows = [];
+      let g = 0;
+      while (i < lines.length && /^\s*\|/.test(lines[i]) && g++ < 500) { rows.push(cells(lines[i])); i++; }
+      out += '<table><thead><tr>' + head.map(h=>'<th>'+inline(h)+'</th>').join('') + '</tr></thead><tbody>'
+           + rows.map(r=>'<tr>'+r.map(c=>'<td>'+inline(c)+'</td>').join('')+'</tr>').join('') + '</tbody></table>';
+      continue;
+    }
+    let m;
+    if ((m = L.match(/^(#{1,6})\s+(.*)$/))){ out += `<h${Math.min(Math.max(m[1].length,2),4)}>${inline(m[2])}</h${Math.min(Math.max(m[1].length,2),4)}>`; i++; continue; }
+    if (/^#+\s*$/.test(L)){ i++; continue; }   // 單獨的 #：吃掉，避免無限迴圈
+    if (/^\s*(-{3,}|\*{3,})\s*$/.test(L)){ out += '<hr>'; i++; continue; }
+    if ((m = L.match(/^\s*>\s?(.*)$/))){
+      const buf = [];
+      let g = 0;
+      while (i < lines.length && /^\s*>\s?/.test(lines[i]) && g++ < 500) { buf.push(lines[i].replace(/^\s*>\s?/,'')); i++; }
+      out += '<blockquote>' + md(buf.join('\n')) + '</blockquote>'; continue;
+    }
+    if ((m = L.match(/^\s*[-*]\s+(.*)$/))){
+      const items = [];
+      let g = 0;
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i]) && g++ < 500) { items.push(lines[i].replace(/^\s*[-*]\s+/,'')); i++; }
+      out += '<ul>' + items.map(x=>'<li>'+inline(x)+'</li>').join('') + '</ul>'; continue;
+    }
+    if ((m = L.match(/^\s*\d+\.\s+(.*)$/))){
+      const items = [];
+      let g = 0;
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i]) && g++ < 500) { items.push(lines[i].replace(/^\s*\d+\.\s+/,'')); i++; }
+      out += '<ol>' + items.map(x=>'<li>'+inline(x)+'</li>').join('') + '</ol>'; continue;
+    }
+    if (!L.trim()){ i++; continue; }
+    const buf = [];
+    let guard = 0;
+    while (i < lines.length && lines[i].trim() &&
+           !/^\s*([-*]\s|\d+\.\s|>|#)/.test(lines[i]) && !/^\s*\|/.test(lines[i]) &&
+           !/^\s*```/.test(lines[i]) && guard++ < 500) { buf.push(lines[i]); i++; }
+    if (!buf.length){ i++; continue; }          // 保險：不前進就跳一行
+    out += '<p>' + inline(buf.join(' ')) + '</p>';
+  }
+  if (inCode && codeBuf.length) out += '<pre><code>' + esc(codeBuf.join('\n')) + '</code></pre>';
+  return out;
 }
 
+/* ───────── state ───────── */
+const S = { scenes: [], concepts: [], shared: [], graph: {nodes:[],edges:[]}, meta: null, mode:'scenes', q:'', searchScenes:null, article:null };
+const READING = [   // 導讀順序（對應概念頁）
+  ['scene-memory-architecture-overview', '總覽：這是什麼'],
+  ['scene-as-accumulation-carrier',      '為什麼要場景'],
+  ['three-layer-memory',                 '記憶的三層'],
+  ['git-as-boundary-and-routing',        '邊界怎麼劃'],
+  ['handover-section-zero',              '§〇 交接怎麼寫'],
+  ['dispatch-and-receipt',               '派單與回執'],
+  ['accumulable-artifact',               '可累積物'],
+  ['scene-sovereignty',                  '場景主權'],
+  ['single-source-of-truth-rule',        '單一權威'],
+  ['workflow-as-scene-orchestration',    '工作流'],
+  ['scene-vs-ephemeral-subagent',        '場景 vs 臨時執行體'],
+  ['ledger-vs-wiki-memory',              '帳本 vs wiki'],
+  ['scene-memory-architecture',          '專案本體（規格與實機）'],
+];
+
+async function api(p){ const r = await fetch(API + p); if(!r.ok) throw new Error(p+' → '+r.status); return r.json(); }
+
+/* ───────── drawer ───────── */
+const drawer = document.getElementById('drawer'), mask = document.getElementById('mask');
+function openDrawer(title, html){ document.getElementById('drawer-title').textContent = title;
+  document.getElementById('drawer-body').innerHTML = html; drawer.classList.add('open'); mask.classList.add('on'); }
+function closeDrawer(){ drawer.classList.remove('open'); mask.classList.remove('on'); }
+document.getElementById('drawer-x').onclick = closeDrawer; mask.onclick = closeDrawer;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+/* ───────── sidebar ───────── */
+function renderSidebar(){
+  const navs = [
+    ['scenes',   '場景',     S.scenes.length],
+    ['concepts', '概念頁',   S.concepts.length],
+    ['graph',    '連結圖',   S.graph.edges.length],
+    ['shared',   '共享層',   S.shared.length],
+  ];
+  document.getElementById('nav').innerHTML = navs.map(([k,t,c],i) =>
+    `<button class="nav-item ${S.mode===k?'on':''}" data-mode="${k}"><span class="n">${i+1}</span><span>${t}</span><span class="c">${c}</span></button>`).join('');
+
+  document.getElementById('reading').innerHTML = READING.map(([slug,label],i) => {
+    const c = S.concepts.find(x=>x.slug===slug);
+    const type = c ? c.type : '—';
+    return `<button class="reading-item ${S.article===slug?'on':''}" data-article="${slug}">
+      <span class="idx">${String(i+1).padStart(2,'0')}</span>
+      <span><span class="t">${label}</span><br><span class="k">${type}</span></span></button>`;
+  }).join('');
+}
+
+/* ───────── views ───────── */
+function sceneCard(s){
+  const files = s.files.map(f => `<div class="sf ${f.kind==='missing'?'miss':''}" data-scene="${esc(s.id)}" data-file="${esc(f.name)}">
+      <span class="fn">${esc(f.name)}</span><span class="fr">${esc(f.role)} · ${kb(f.size)}</span></div>`).join('');
+  const skills = s.skills.map(k => `<span class="chip chip-outline" data-skill="${esc(k.name)}">${esc(k.name)}</span>`).join('');
+  return `<div class="scene-card glass card">
+    <div class="scene-top"><span class="nm">${esc(s.name)}</span>
+      <span class="meta">${s.has_git?'.git ✓':'缺 .git'} · §₀ ${kb(s.handover_size)} · ${s.skill_count} 技能</span></div>
+    <div class="scene-files">${files}</div>
+    ${skills?`<div class="scene-skills">${skills}</div>`:''}
+  </div>`;
+}
 function conceptCard(c){
   const n = (c.blocks||[]).length;
-  return '<div class="concept" data-slug="' + esc(c.slug) + '"><h3>' + esc(c.title) +
-    '<span class="ty">' + esc(c.type) + '</span></h3><p>' + esc((c.summary||'').slice(0,220)) +
-    (n ? ' <span class="pill info">' + n + ' 區塊</span>' : '') + '</p></div>';
-}
-
-async function openScene(id, fileName){
-  const s = await api('/api/scenes/' + encodeURIComponent(id));
-  let html = '<div class="meta">' + esc(s.path) + '</div>';
-  html += '<h4>場景資訊</h4><table class="t"><tr><th>項目</th><th>值</th></tr>' +
-    '<tr><td>.git</td><td>' + (s.has_git?'有 ✓':'缺 ✗') + '</td></tr>' +
-    '<tr><td>§〇 大小</td><td>' + kb(s.handover_size) + '</td></tr>' +
-    '<tr><td>技能</td><td>' + s.skill_count + '</td></tr>' +
-    '<tr><td>面板</td><td>' + (s.panels||[]).map(p=>esc(p.id)).join(', ') + '</td></tr></table>';
-  html += '<h4>§〇 當前交接</h4><pre>' + esc(s.handover || '(無)') + '</pre>';
-  html += '<h4>技能</h4><div class="links">' + (s.skills||[]).map(k =>
-    '<a data-skill="' + esc(k.name) + '">' + esc(k.name) + ' <small>' + kb(k.size) + '</small></a>').join('') + '</div>';
-  if (fileName){
-    const f = await api('/api/scenes/' + encodeURIComponent(id) + '/files/' + encodeURIComponent(fileName));
-    html += '<h4>' + esc(f.name) + ' <small style="font-weight:700">（' + esc(f.role) + ' · ' + kb(f.size) + '）</small></h4>';
-    html += '<p style="font-size:12px;color:#555;margin-bottom:6px">' + esc(f.desc||'') + '</p>';
-    html += '<pre>' + esc(f.content || '(空或目錄)') + '</pre>';
-  }
-  openDrawer(s.name, html);
-}
-
-async function openConcept(slug){
-  const c = await api('/api/concepts/' + encodeURIComponent(slug));
-  let html = '<div class="meta">' + esc(c.type) + ' · ' + esc(c.path||'') + '</div>';
-  html += '<p style="font-size:13px;line-height:1.6;margin-bottom:8px">' + esc(c.summary||'') + '</p>';
-  html += '<h4>區塊</h4>';
-  for (const b of (c.blocks||[])){
-    if (!b.body) continue;
-    html += '<div class="blk"><h5>' + esc(b.heading||'') + '</h5><p>' + esc(b.body.slice(0,1600)) +
-      (b.body.length > 1600 ? '\n…（完整內容見原始 md）' : '') + '</p></div>';
-  }
-  const rel = S.graph.edges.filter(e => e.src === slug);
-  if (rel.length) html += '<h4>連結</h4><div class="links">' + rel.map(e =>
-    '<a data-node="' + esc(e.dst) + '">' + esc(e.dst) + ' <small>' + esc(e.kind) + '</small></a>').join('') + '</div>';
-  openDrawer(c.title, html);
-}
-
-async function openShared(name){
-  const f = S.shared.find(x => x.name === name);
-  openDrawer(name, '<div class="meta">' + kb(f.size) + '</div><pre>' + esc(f.content||'') + '</pre>');
+  return `<div class="concept-card glass card card-hover" data-article="${esc(c.slug)}">
+    <h3>${esc(c.title)}<span class="type">${esc(c.type)}</span></h3>
+    <p>${esc((c.summary||'').slice(0,190))}</p>
+    <div class="label">${n} 區塊</div></div>`;
 }
 
 function render(){
-  const main = document.getElementById('main');
-  const t = document.getElementById('sec-title');
+  const view = document.getElementById('view');
+  const title = document.getElementById('page-title'), desc = document.getElementById('page-desc');
+  renderSidebar();
+
+  if (S.mode === 'article'){
+    const c = S.concepts.find(x => x.slug === S.article);
+    title.textContent = c ? c.title : '文章';
+    desc.textContent = c ? c.type + ' · 導讀' : '';
+    view.innerHTML = `<div class="article glass card">${c ? md(c.body) : ''}</div>`;
+    return;
+  }
   const q = S.q.toLowerCase();
   if (S.mode === 'scenes'){
-    t.textContent = '場景';
-    const list = S.searchScenes
-      ? S.searchScenes
-      : S.scenes.filter(s => !q || s.name.toLowerCase().includes(q) ||
-          s.skills.some(k => k.name.toLowerCase().includes(q)) ||
-          s.files.some(f => f.name.toLowerCase().includes(q)));
-    document.getElementById('cnt').textContent = list.length;
-    main.innerHTML = '<div class="grid">' + list.map(sceneCard).join('') + '</div>';
+    title.textContent = '場景'; desc.textContent = '24 個獨立 git 倉庫 · 每個有自己的記憶與技能';
+    const list = S.searchScenes ? S.searchScenes : S.scenes.filter(s => !q ||
+      s.name.toLowerCase().includes(q) || s.skills.some(k=>k.name.toLowerCase().includes(q)) ||
+      s.files.some(f=>f.name.toLowerCase().includes(q)));
+    view.innerHTML = `<div class="scene-grid">${list.map(sceneCard).join('')}</div>`;
   } else if (S.mode === 'concepts'){
-    t.textContent = '概念頁';
+    title.textContent = '概念頁'; desc.textContent = '13 頁 wikilink 知識庫';
     const list = S.concepts.filter(c => !q || (c.title+c.slug+(c.summary||'')).toLowerCase().includes(q));
-    document.getElementById('cnt').textContent = list.length;
-    main.innerHTML = '<div class="grid">' + list.map(conceptCard).join('') + '</div>';
+    view.innerHTML = `<div class="concept-grid">${list.map(conceptCard).join('')}</div>`;
   } else if (S.mode === 'graph'){
-    t.textContent = '連結圖';
-    document.getElementById('cnt').textContent = S.graph.edges.length;
-    const rows = S.graph.edges.map(e => '<tr><td>' + esc(e.src) + '</td><td>' + esc(e.dst) + '</td><td>' + esc(e.kind) + '</td></tr>').join('');
-    const nodeRows = S.graph.nodes.map(n => '<tr><td>' + esc(n.id) + '</td><td>' + esc(n.label) + '</td><td>' + esc(n.group) + '</td></tr>').join('');
-    main.innerHTML = '<h4>邊（edges）</h4><table class="t"><tr><th>src</th><th>dst</th><th>kind</th></tr>' + rows + '</table>' +
-      '<h4 style="margin-top:22px">節點（nodes）</h4><table class="t"><tr><th>id</th><th>label</th><th>group</th></tr>' + nodeRows + '</table>';
+    title.textContent = '連結圖'; desc.textContent = '概念頁之間的 wikilink ＋ 概念頁與場景的對應';
+    const rows = S.graph.edges.map(e => `<tr><td>${esc(e.src)}</td><td>${esc(e.dst)}</td><td class="mono">${esc(e.kind)}</td></tr>`).join('');
+    const nodes = S.graph.nodes.map(n => `<tr><td>${esc(n.id)}</td><td>${esc(n.label)}</td><td class="mono">${esc(n.group)}</td></tr>`).join('');
+    view.innerHTML = `<div class="glass card">
+      <div class="label" style="margin-bottom:var(--space-sm)">邊 · ${S.graph.edges.length}</div>
+      <table class="data"><thead><tr><th>src</th><th>dst</th><th>kind</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="label" style="margin:var(--space-lg) 0 var(--space-sm)">節點 · ${S.graph.nodes.length}</div>
+      <table class="data"><thead><tr><th>id</th><th>label</th><th>group</th></tr></thead><tbody>${nodes}</tbody></table></div>`;
   } else {
-    t.textContent = '共享層';
-    document.getElementById('cnt').textContent = S.shared.length;
-    main.innerHTML = '<div class="grid">' + S.shared.map(f =>
-      '<div class="concept" data-shared="' + esc(f.name) + '"><h3>' + esc(f.name) + '</h3><p>' + kb(f.size) + '</p></div>').join('') + '</div>';
+    title.textContent = '共享層'; desc.textContent = '跨場景的板、台帳、索引、路由表';
+    view.innerHTML = `<div class="concept-grid">${S.shared.map(f => `<div class="concept-card glass card card-hover" data-shared="${esc(f.name)}">
+      <h3>${esc(f.name)}</h3><p class="mono">${kb(f.size)}</p></div>`).join('')}</div>`;
   }
+}
+
+/* ───────── actions ───────── */
+async function openScene(id, fileName){
+  const s = await api('/api/scenes/' + encodeURIComponent(id));
+  let h = `<div class="label">${esc(s.path)}</div>`;
+  h += `<table class="data" style="margin:var(--space-md) 0"><tbody>
+    <tr><th>.git</th><td>${s.has_git?'有 ✓':'缺 ✗'}</td></tr>
+    <tr><th>§₀ 大小</th><td class="mono">${kb(s.handover_size)}</td></tr>
+    <tr><th>技能</th><td class="mono">${s.skill_count}</td></tr>
+    <tr><th>面板</th><td class="mono">${(s.panels||[]).map(p=>esc(p.id)).join(', ')}</td></tr></tbody></table>`;
+  h += `<h3 style="font-size:var(--text-h4);margin:var(--space-lg) 0 var(--space-sm)">§〇 當前交接</h3><pre class="mono" style="background:var(--c-surface-2);padding:var(--space-md);overflow:auto;font-size:var(--text-micro);white-space:pre-wrap">${esc(s.handover||'(無)')}</pre>`;
+  if (fileName){
+    const f = await api('/api/scenes/' + encodeURIComponent(id) + '/files/' + encodeURIComponent(fileName));
+    h += `<h3 style="font-size:var(--text-h4);margin:var(--space-lg) 0 var(--space-sm)">${esc(f.name)}</h3>
+      <div class="label" style="margin-bottom:var(--space-sm)">${esc(f.role)} · ${kb(f.size)}</div>
+      <div class="article">${md(f.content||'')}</div>`;
+  }
+  openDrawer(s.name, h);
+}
+async function openShared(name){
+  const f = S.shared.find(x=>x.name===name);
+  openDrawer(name, `<div class="label" style="margin-bottom:var(--space-md)">${kb(f.size)}</div><div class="article">${md(f.content||'')}</div>`);
 }
 
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-scene],[data-file],[data-slug],[data-shared],[data-skill],[data-node]');
+  const t = e.target.closest('[data-mode],[data-article],[data-scene],[data-file],[data-shared],[data-skill],[data-wl]');
   if (!t) return;
+  if (t.dataset.mode){ S.mode = t.dataset.mode; S.article = null; render(); return; }
+  if (t.dataset.article){ S.mode = 'article'; S.article = t.dataset.article; render(); window.scrollTo({top:0,behavior:'smooth'}); return; }
+  if (t.dataset.wl){ const slug = t.dataset.wl; if (S.concepts.some(c=>c.slug===slug)){ S.mode='article'; S.article=slug; render(); } return; }
   if (t.dataset.scene && t.dataset.file) openScene(t.dataset.scene, t.dataset.file);
   else if (t.dataset.scene) openScene(t.dataset.scene);
-  else if (t.dataset.slug) openConcept(t.dataset.slug);
   else if (t.dataset.shared) openShared(t.dataset.shared);
-  else if (t.dataset.skill){ document.getElementById('q').value = t.dataset.skill; S.q = t.dataset.skill; S.searchScenes=null; S.mode='scenes'; render(); }
-  else if (t.dataset.node){
-    if (S.graph.nodes.some(n => n.id === t.dataset.node && n.group === 'concept')) openConcept(t.dataset.node);
-    else { S.q = t.dataset.node; S.mode = 'scenes'; render(); }
-  }
+  else if (t.dataset.skill){ document.getElementById('q').value = t.dataset.skill; S.q = t.dataset.skill; S.searchScenes = null; S.mode='scenes'; render(); }
 });
 
-let searchTimer = null;
+/* ───────── search ───────── */
+let timer = null;
 document.getElementById('q').oninput = e => {
-  S.q = e.target.value;
-  clearTimeout(searchTimer);
+  S.q = e.target.value; clearTimeout(timer);
   const term = S.q.trim();
-  if (term.length < 2) { S.searchScenes = null; render(); return; }
-  searchTimer = setTimeout(async () => {
-    try {
-      const r = await api('/api/search?q=' + encodeURIComponent(term));
-      S.searchScenes = r.scenes;
-      render();
-    } catch(e) { /* 忽略 */ }
+  if (term.length < 2){ S.searchScenes = null; render(); return; }
+  timer = setTimeout(async () => {
+    try { const r = await api('/api/search?q=' + encodeURIComponent(term)); S.searchScenes = r.scenes; render(); } catch(e){}
   }, 180);
 };
-for (const [id, mode] of [['btn-scenes','scenes'],['btn-concepts','concepts'],['btn-graph','graph'],['btn-shared','shared']]){
-  document.getElementById(id).onclick = () => {
-    S.mode = mode;
-    for (const b of document.querySelectorAll('.btn')) b.classList.remove('on');
-    document.getElementById(id).classList.add('on');
-    render();
-  };
-}
 
+/* ───────── theme ───────── */
+const saved = localStorage.getItem('sm-theme');
+document.documentElement.dataset.theme = saved || 'dark';
+document.getElementById('theme').onclick = () => {
+  const cur = document.documentElement.dataset.theme;
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('sm-theme', next);
+};
+
+/* ───────── init ───────── */
 (async function init(){
   try{
     const [meta, sc, co, sh, gr] = await Promise.all([
       api('/api/meta'), api('/api/scenes'), api('/api/concepts'), api('/api/shared'), api('/api/graph')]);
-    S.scenes = sc.scenes; S.concepts = co.concepts; S.shared = sh.shared; S.graph = gr;
+    S.meta = meta; S.scenes = sc.scenes; S.concepts = co.concepts; S.shared = sh.shared; S.graph = gr;
     const c = meta.counts;
-    document.getElementById('meta-line').textContent =
-      c.scenes + ' 場景 · ' + c.skills + ' 技能 · ' + c.concepts + ' 概念頁 · ' + c.edges + ' 連結 · built ' + meta.meta.built_at.slice(0,16);
-    document.getElementById('status').textContent = 'API ' + meta.db_path + ' · ' + kb(meta.db_size);
-    document.getElementById('btn-scenes').classList.add('on');
+    document.getElementById('brand-sub').textContent =
+      c.scenes + ' 場景 · ' + c.skills + ' 技能 · ' + c.concepts + ' 概念頁';
     render();
   } catch(err){
-    document.getElementById('meta-line').textContent = '後端未連上：' + err.message;
+    document.getElementById('page-desc').textContent = '後端未連上：' + err.message;
   }
 })();
 </script>

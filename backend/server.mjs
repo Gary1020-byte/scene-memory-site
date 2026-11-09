@@ -56,7 +56,7 @@ function send (res, code, body, type = 'application/json; charset=utf-8') {
 }
 
 function listConcepts () {
-  return q('SELECT slug,title,type,summary,tags,order_no FROM concepts ORDER BY order_no')
+  return q('SELECT slug,title,type,summary,tags,order_no,body FROM concepts ORDER BY order_no')
     .map(c => ({ ...c, blocks: q('SELECT idx,heading,level FROM concept_blocks WHERE slug=? ORDER BY idx', c.slug) }))
 }
 
